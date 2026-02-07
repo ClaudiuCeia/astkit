@@ -6,6 +6,7 @@ import type {
   TemplateToken,
   TextToken,
 } from "./types.ts";
+import { ELLIPSIS_CAPTURE_PREFIX } from "./types.ts";
 
 type MatchResult = {
   end: number;
@@ -69,6 +70,49 @@ function matchTokens(
       cursor + token.value.length,
       captures,
     );
+  }
+
+  if (token.kind === "ellipsis") {
+    const nextLiteral = findNextLiteral(tokens, tokenIndex + 1);
+    if (!nextLiteral) {
+      const chunk = text.slice(cursor);
+      if (!isBalancedChunk(chunk)) {
+        return null;
+      }
+
+      const nextCaptures = captureEllipsis(captures, token.index, chunk);
+      return matchTokens(
+        text,
+        tokens,
+        tokenIndex + 1,
+        text.length,
+        nextCaptures,
+      );
+    }
+
+    const nextIndexes = findLiteralIndexes(text, nextLiteral.value, cursor);
+    for (let index = nextIndexes.length - 1; index >= 0; index -= 1) {
+      const nextIndex = nextIndexes[index];
+      if (nextIndex === undefined) {
+        continue;
+      }
+      const chunk = text.slice(cursor, nextIndex);
+      if (isBalancedChunk(chunk)) {
+        const nextCaptures = captureEllipsis(captures, token.index, chunk);
+        const nested = matchTokens(
+          text,
+          tokens,
+          tokenIndex + 1,
+          nextIndex,
+          nextCaptures,
+        );
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return null;
   }
 
   const nextLiteral = findNextLiteral(tokens, tokenIndex + 1);
@@ -160,4 +204,34 @@ function captureHole(
   }
 
   return next;
+}
+
+function captureEllipsis(
+  captures: ReadonlyMap<string, string>,
+  index: number,
+  value: string,
+): Map<string, string> {
+  const next = new Map(captures);
+  next.set(`${ELLIPSIS_CAPTURE_PREFIX}${index}`, value);
+  return next;
+}
+
+function findLiteralIndexes(
+  text: string,
+  literal: string,
+  fromIndex: number,
+): number[] {
+  const indexes: number[] = [];
+  let probe = fromIndex;
+
+  while (probe <= text.length) {
+    const matchIndex = text.indexOf(literal, probe);
+    if (matchIndex < 0) {
+      break;
+    }
+    indexes.push(matchIndex);
+    probe = matchIndex + 1;
+  }
+
+  return indexes;
 }

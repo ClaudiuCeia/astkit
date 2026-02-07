@@ -14,7 +14,13 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { CompiledTemplate, HoleToken, TemplateToken, TextToken } from "./types.ts";
+import type {
+  CompiledTemplate,
+  EllipsisToken,
+  HoleToken,
+  TemplateToken,
+  TextToken,
+} from "./types.ts";
 
 const HOLE_INNER_NAME_PATTERN = /(?:[A-Za-z_][A-Za-z0-9_]*|_)/;
 
@@ -25,7 +31,11 @@ type RawHoleToken = {
   constraintSource: string | null;
 };
 
-type RawTemplateToken = TextToken | RawHoleToken;
+type RawEllipsisToken = {
+  kind: "ellipsis";
+};
+
+type RawTemplateToken = TextToken | RawHoleToken | RawEllipsisToken;
 
 const holeNameParser = parseRegex(HOLE_INNER_NAME_PATTERN, "hole name");
 
@@ -70,13 +80,24 @@ const holeTokenParser = map(
   },
 );
 
+const ellipsisTokenParser = map(str("..."), () => ({
+  kind: "ellipsis",
+} satisfies RawEllipsisToken));
+
 const textTokenParser = map(
-  mapJoin(many1(minus(anyChar(), str(":[")))),
+  mapJoin(
+    many1(
+      minus(
+        anyChar(),
+        any(str("..."), str(":[")),
+      ),
+    ),
+  ),
   (value) => ({ kind: "text", value } satisfies TextToken),
 );
 
 const templateTokensParser = map(
-  seq(many(any(holeTokenParser, textTokenParser)), eof()),
+  seq(many(any(holeTokenParser, ellipsisTokenParser, textTokenParser)), eof()),
   ([tokens]) => tokens as RawTemplateToken[],
 );
 
@@ -86,7 +107,8 @@ export function tokenizeTemplate(source: string): TemplateToken[] {
     throw new Error(`Invalid template: ${formatErrorCompact(parsed)}`);
   }
 
-  return parsed.value.map(resolveRawToken);
+  let ellipsisIndex = 0;
+  return parsed.value.map((token) => resolveRawToken(token, () => ellipsisIndex++));
 }
 
 export function compileTemplate(source: string): CompiledTemplate {
@@ -102,7 +124,12 @@ export function compileTemplate(source: string): CompiledTemplate {
   for (let index = 0; index < tokens.length - 1; index += 1) {
     const current = tokens[index];
     const next = tokens[index + 1];
-    if (current && next && current.kind === "hole" && next.kind === "hole") {
+    if (
+      current &&
+      next &&
+      current.kind !== "text" &&
+      next.kind !== "text"
+    ) {
       throw new Error(
         "Adjacent holes are ambiguous. Add a literal delimiter between them.",
       );
@@ -122,9 +149,19 @@ export function compileTemplate(source: string): CompiledTemplate {
   return { source, tokens };
 }
 
-function resolveRawToken(token: RawTemplateToken): TemplateToken {
+function resolveRawToken(
+  token: RawTemplateToken,
+  nextEllipsisIndex: () => number,
+): TemplateToken {
   if (token.kind === "text") {
     return token;
+  }
+
+  if (token.kind === "ellipsis") {
+    return {
+      kind: "ellipsis",
+      index: nextEllipsisIndex(),
+    } satisfies EllipsisToken;
   }
 
   if (token.constraintSource === null) {

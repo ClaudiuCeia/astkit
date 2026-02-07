@@ -77,6 +77,7 @@ Inside pattern/replacement text, holes use this syntax:
 - `:[name]`
 - `:[_]` (anonymous hole, not captured)
 - `:[name~regex]` (capture must satisfy regex)
+- `...` (variadic wildcard; captured and reusable in replacement)
 
 Examples:
 
@@ -98,6 +99,15 @@ Repeated holes enforce equality:
 ```
 
 `foo + foo` matches, `foo + bar` does not.
+
+Variadic example:
+
+```text
+-foo(:[x], ...);
++bar(:[x], ...);
+```
+
+Rewrites the callee and preserves remaining arguments.
 
 ## How It Works
 

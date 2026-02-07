@@ -1,4 +1,5 @@
 import { tokenizeTemplate } from "./syntax.ts";
+import { ELLIPSIS_CAPTURE_PREFIX } from "./types.ts";
 
 export function renderTemplate(
   source: string,
@@ -14,6 +15,17 @@ export function renderTemplate(
   for (const token of tokens) {
     if (token.kind === "text") {
       rendered += token.value;
+      continue;
+    }
+
+    if (token.kind === "ellipsis") {
+      const value = captures[`${ELLIPSIS_CAPTURE_PREFIX}${token.index}`];
+      if (value === undefined) {
+        throw new Error(
+          `Replacement uses ellipsis #${token.index + 1} but pattern did not capture it.`,
+        );
+      }
+      rendered += value;
       continue;
     }
 

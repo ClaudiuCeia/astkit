@@ -29,6 +29,7 @@ Supported syntax is shared with `spatch` templates:
 - `:[name]`
 - `:[_]` anonymous hole (not captured)
 - `:[name~regex]` regex-constrained hole
+- `...` variadic wildcard
 
 Repeated named holes enforce equality:
 
@@ -37,6 +38,14 @@ Repeated named holes enforce equality:
 ```
 
 Matches `foo + foo`, not `foo + bar`.
+
+Example with variadic wildcard:
+
+```text
+foo(:[x], ..., :[y])
+```
+
+Matches calls where `:[x]` is the first argument and `:[y]` is the last argument.
 
 ## Structural balancing
 

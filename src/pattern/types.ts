@@ -3,6 +3,11 @@ export type TextToken = {
   value: string;
 };
 
+export type EllipsisToken = {
+  kind: "ellipsis";
+  index: number;
+};
+
 export type HoleToken = {
   kind: "hole";
   name: string;
@@ -11,7 +16,7 @@ export type HoleToken = {
   constraintRegex: RegExp | null;
 };
 
-export type TemplateToken = TextToken | HoleToken;
+export type TemplateToken = TextToken | HoleToken | EllipsisToken;
 
 export type CompiledTemplate = {
   source: string;
@@ -24,3 +29,5 @@ export type TemplateMatch = {
   text: string;
   captures: Record<string, string>;
 };
+
+export const ELLIPSIS_CAPTURE_PREFIX = "__ellipsis_";

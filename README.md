@@ -96,6 +96,7 @@ Both `search` and `patch` use the same hole/metavariable syntax:
 - `:[name]`
 - `:[_]` anonymous hole (ignored in captures)
 - `:[name~regex]` regex-constrained hole
+- `...` variadic wildcard (matches balanced text and can be reused in replacement)
 
 Repeated named holes enforce equality:
 

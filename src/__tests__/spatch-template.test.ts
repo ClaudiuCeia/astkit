@@ -84,3 +84,36 @@ test("renderTemplate supports constrained placeholders in replacement", () => {
 
   expect(rendered).toBe("let alpha = Number(42);");
 });
+
+test("ellipsis wildcard matches variadic middle content", () => {
+  const template = compileTemplate("foo(:[x], ..., :[y]);");
+  const text = [
+    "foo(first, second, third);",
+    "foo(alpha, beta, gamma, delta);",
+    "",
+  ].join("\n");
+
+  const matches = findTemplateMatches(text, template);
+
+  expect(matches.length).toBe(2);
+  expect(matches[0]?.captures).toEqual({
+    x: "first",
+    y: "third",
+    "__ellipsis_0": "second",
+  });
+  expect(matches[1]?.captures).toEqual({
+    x: "alpha",
+    y: "delta",
+    "__ellipsis_0": "beta, gamma",
+  });
+});
+
+test("renderTemplate can reuse ellipsis capture in replacement", () => {
+  const template = compileTemplate("foo(:[x], ...);");
+  const text = "foo(first, second, third);";
+  const matches = findTemplateMatches(text, template);
+
+  expect(matches.length).toBe(1);
+  const rendered = renderTemplate("bar(:[x], ...);", matches[0]!.captures);
+  expect(rendered).toBe("bar(first, second, third);");
+});

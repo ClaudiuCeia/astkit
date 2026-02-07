@@ -281,3 +281,31 @@ test("patchProject throws for unknown replacement holes", async () => {
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("patchProject supports ellipsis wildcard", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "calls.ts");
+    await writeFile(
+      file,
+      "foo(first, second, third);\nfoo(one, two);\n",
+      "utf8",
+    );
+
+    const patch = ["-foo(:[x], ...);", "+bar(:[x], ...);"].join("\n");
+
+    const result = await patchProject(patch, {
+      scope: workspace,
+    });
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.totalReplacements).toBe(2);
+    expect(await readFile(file, "utf8")).toBe(
+      "bar(first, second, third);\nbar(one, two);\n",
+    );
+    expect(result.files[0]?.occurrences[0]?.captures).toEqual({ x: "first" });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});

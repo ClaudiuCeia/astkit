@@ -202,3 +202,32 @@ test("searchProject throws on empty pattern", async () => {
 
   expect(thrown).toBeInstanceOf(Error);
 });
+
+test("searchProject supports ellipsis wildcard", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(
+      path.join(workspace, "calls.ts"),
+      "foo(first, second, third);\nfoo(alpha, beta, gamma, delta);\nfoo(one, two);\n",
+      "utf8",
+    );
+
+    const result = await searchProject("foo(:[x], ..., :[y]);", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "first",
+      y: "third",
+    });
+    expect(result.files[0]?.matches[1]?.captures).toEqual({
+      x: "alpha",
+      y: "delta",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});

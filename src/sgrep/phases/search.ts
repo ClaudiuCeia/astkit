@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { compileTemplate, findTemplateMatches } from "../../pattern/index.ts";
+import {
+  compileTemplate,
+  ELLIPSIS_CAPTURE_PREFIX,
+  findTemplateMatches,
+} from "../../pattern/index.ts";
 import { collectPatchableFiles } from "../../spatch/files.ts";
 import { createLineStarts, toLineCharacter } from "../../spatch/text.ts";
 import type { SgrepFileResult, SgrepOptions } from "../types.ts";
@@ -87,7 +91,7 @@ async function searchFile(
       line,
       character,
       matched: match.text,
-      captures: match.captures,
+      captures: filterPublicCaptures(match.captures),
     };
   });
 
@@ -96,4 +100,13 @@ async function searchFile(
     matchCount: matches.length,
     matches: searchMatches,
   };
+}
+
+function filterPublicCaptures(
+  captures: Record<string, string>,
+): Record<string, string> {
+  const entries = Object.entries(captures).filter(
+    ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
+  );
+  return Object.fromEntries(entries);
 }

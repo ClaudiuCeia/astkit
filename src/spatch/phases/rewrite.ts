@@ -3,6 +3,7 @@ import path from "node:path";
 import { collectPatchableFiles } from "../files.ts";
 import {
   compileTemplate,
+  ELLIPSIS_CAPTURE_PREFIX,
   findTemplateMatches,
   renderTemplate,
 } from "../../pattern/index.ts";
@@ -111,7 +112,7 @@ async function rewriteFile(
       character,
       matched: match.text,
       replacement: rendered,
-      captures: match.captures,
+      captures: filterPublicCaptures(match.captures),
     };
   });
 
@@ -138,6 +139,15 @@ async function rewriteFile(
       : 0,
     occurrences,
   };
+}
+
+function filterPublicCaptures(
+  captures: Record<string, string>,
+): Record<string, string> {
+  const entries = Object.entries(captures).filter(
+    ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
+  );
+  return Object.fromEntries(entries);
 }
 
 function applyOccurrences(
