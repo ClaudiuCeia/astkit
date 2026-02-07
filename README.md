@@ -50,12 +50,14 @@ All line/character positions are 1-indexed.
 ### `search` (`sgrep`)
 
 ```bash
-semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--json]
+semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
 ```
 
 - Default output is compact, file-grouped text
 - In interactive terminals, captures are colorized
 - `--no-color` disables coloring
+- Isomorphism expansion is enabled by default (commutative binary operators, object-literal key order, redundant parentheses)
+- `--no-isomorphisms` disables isomorphism expansion
 - `--json` prints full structured result
 
 Examples:

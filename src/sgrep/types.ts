@@ -12,6 +12,7 @@ export type SgrepOptions = {
   extensions?: readonly string[];
   excludedDirectories?: readonly string[];
   encoding?: BufferEncoding;
+  isomorphisms?: boolean;
 };
 
 export type SgrepMatch = {

@@ -4,9 +4,11 @@ import {
   compileTemplate,
   ELLIPSIS_CAPTURE_PREFIX,
   findTemplateMatches,
+  type TemplateMatch,
 } from "../../pattern/index.ts";
 import { collectPatchableFiles } from "../../spatch/files.ts";
 import { createLineStarts, toLineCharacter } from "../../spatch/text.ts";
+import { expandPatternIsomorphisms } from "../isomorphisms/index.ts";
 import type { SgrepFileResult, SgrepOptions } from "../types.ts";
 import type { ParsedSearchSpec } from "./parse.ts";
 
@@ -27,7 +29,10 @@ export async function searchProjectFiles(
   const scope = options.scope ?? ".";
   const encoding = options.encoding ?? "utf8";
   const resolvedScope = path.resolve(cwd, scope);
-  const compiledPattern = compileTemplate(search.pattern);
+  const compiledPatterns = compileSearchPatterns(
+    search.pattern,
+    options.isomorphisms ?? true,
+  );
   const files = await collectPatchableFiles({
     cwd,
     scope,
@@ -43,7 +48,7 @@ export async function searchProjectFiles(
     const fileResult = await searchFile({
       cwd,
       filePath,
-      compiledPattern,
+      compiledPatterns,
       encoding,
     });
 
@@ -69,7 +74,7 @@ export async function searchProjectFiles(
 type SearchFileInput = {
   cwd: string;
   filePath: string;
-  compiledPattern: ReturnType<typeof compileTemplate>;
+  compiledPatterns: ReturnType<typeof compileTemplate>[];
   encoding: BufferEncoding;
 };
 
@@ -77,7 +82,7 @@ async function searchFile(
   input: SearchFileInput,
 ): Promise<SgrepFileResult | null> {
   const sourceText = await readFile(input.filePath, input.encoding);
-  const matches = findTemplateMatches(sourceText, input.compiledPattern);
+  const matches = findFileMatches(sourceText, input.compiledPatterns);
   if (matches.length === 0) {
     return null;
   }
@@ -109,4 +114,58 @@ function filterPublicCaptures(
     ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
   );
   return Object.fromEntries(entries);
+}
+
+function compileSearchPatterns(
+  pattern: string,
+  withIsomorphisms: boolean,
+): ReturnType<typeof compileTemplate>[] {
+  const variants = expandPatternIsomorphisms(pattern, {
+    enabled: withIsomorphisms,
+  });
+  const compiledPatterns: ReturnType<typeof compileTemplate>[] = [];
+  const seen = new Set<string>();
+
+  for (let index = 0; index < variants.length; index += 1) {
+    const variant = variants[index];
+    if (!variant || seen.has(variant)) {
+      continue;
+    }
+    seen.add(variant);
+
+    try {
+      compiledPatterns.push(compileTemplate(variant));
+    } catch (error) {
+      if (variant === pattern || index === 0) {
+        throw error;
+      }
+    }
+  }
+
+  if (compiledPatterns.length === 0) {
+    throw new Error("Unable to compile search pattern.");
+  }
+
+  return compiledPatterns;
+}
+
+function findFileMatches(
+  sourceText: string,
+  compiledPatterns: readonly ReturnType<typeof compileTemplate>[],
+): TemplateMatch[] {
+  const uniqueBySpan = new Map<string, TemplateMatch>();
+
+  for (const compiledPattern of compiledPatterns) {
+    const matches = findTemplateMatches(sourceText, compiledPattern);
+    for (const match of matches) {
+      const key = `${match.start}:${match.end}`;
+      if (!uniqueBySpan.has(key)) {
+        uniqueBySpan.set(key, match);
+      }
+    }
+  }
+
+  return [...uniqueBySpan.values()].sort(
+    (left, right) => left.start - right.start || left.end - right.end,
+  );
 }

@@ -231,3 +231,90 @@ test("searchProject supports ellipsis wildcard", async () => {
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("searchProject applies commutative binary isomorphism", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(path.join(workspace, "math.ts"), "const total = 1 + value;\n", "utf8");
+
+    const result = await searchProject("const total = :[x] + 1;", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "value",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("searchProject avoids duplicate spans from isomorphism variants", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(path.join(workspace, "math.ts"), "const total = a + b;\n", "utf8");
+
+    const result = await searchProject("const total = :[x] + :[y];", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "a",
+      y: "b",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("searchProject matches parenthesized variants through isomorphism expansion", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(path.join(workspace, "math.ts"), "const total = (a + b);\n", "utf8");
+
+    const result = await searchProject("const total = :[x] + :[y];", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "a",
+      y: "b",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("searchProject matches reordered object literal key/value entries", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(
+      path.join(workspace, "map.ts"),
+      'const map = { bar: second, foo: first };\n',
+      "utf8",
+    );
+
+    const result = await searchProject("const map = { foo: :[x], bar: :[y] };", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "first",
+      y: "second",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});

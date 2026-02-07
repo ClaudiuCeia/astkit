@@ -56,6 +56,49 @@ test("runSearchCommand defaults scope to current directory", async () => {
   }
 });
 
+test("runSearchCommand can disable isomorphism expansion", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
+
+  try {
+    await writeFile(path.join(workspace, "sample.ts"), "const total = 1 + value;\n", "utf8");
+
+    const result = await runSearchCommand("const total = :[x] + 1;", ".", {
+      cwd: workspace,
+      "no-isomorphisms": true,
+    });
+
+    expect(result.totalMatches).toBe(0);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runSearchCommand matches object literal key-order isomorphism", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
+
+  try {
+    await writeFile(
+      path.join(workspace, "sample.ts"),
+      "const map = { bar: second, foo: first };\n",
+      "utf8",
+    );
+
+    const result = await runSearchCommand(
+      "const map = { foo: :[x], bar: :[y] };",
+      ".",
+      { cwd: workspace },
+    );
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({
+      x: "first",
+      y: "second",
+    });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("formatSearchOutput renders compact file and line output", () => {
   const result: SgrepResult = {
     scope: "/tmp/workspace/src",

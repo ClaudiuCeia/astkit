@@ -9,7 +9,7 @@ Pattern input can be:
 ## CLI
 
 ```bash
-semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--json]
+semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
 ```
 
 Examples:
@@ -21,6 +21,28 @@ semantic search 'const :[name] = :[value];' src
 # pattern from file
 semantic search rules/find-const.sgrep src --cwd /repo
 ```
+
+## Isomorphisms
+
+`sgrep` expands the pattern through a small isomorphism engine before matching.
+
+Default rules:
+- `commutative-binary`: swaps operands for commutative operators (`+`, `*`, `&`, `|`, `^`, `==`, `===`, `!=`, `!==`)
+- `object-literal-property-order`: swaps adjacent object literal `key: value` entries when safe
+- `redundant-parentheses`: adds/removes extra parentheses around binary expressions
+
+Disable all isomorphisms with:
+
+```bash
+semantic search 'const total = :[x] + :[y];' src --no-isomorphisms
+```
+
+Developer notes:
+- Rule registry: `src/sgrep/isomorphisms/registry.ts`
+- Rule interface: `src/sgrep/isomorphisms/types.ts`
+- Expansion engine: `src/sgrep/isomorphisms/expand.ts`
+- Adding a new isomorphism only requires creating one rule file and registering it.
+- Patterns containing template wildcard `...` skip AST isomorphism expansion (to avoid ambiguity with JS spread syntax).
 
 ## Metavariables
 

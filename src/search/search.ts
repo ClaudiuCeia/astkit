@@ -5,6 +5,7 @@ import type { SgrepResult } from "../sgrep/types.ts";
 
 export type SearchCommandFlags = {
   cwd?: string;
+  "no-isomorphisms"?: boolean;
   "no-color"?: boolean;
   json?: boolean;
 };
@@ -16,6 +17,7 @@ export async function runSearchCommand(
 ): Promise<SgrepResult> {
   return searchProject(patternInput, {
     cwd: flags.cwd,
+    isomorphisms: !(flags["no-isomorphisms"] ?? false),
     scope: scope ?? ".",
   });
 }
@@ -253,6 +255,11 @@ export const searchCommand = buildCommand({
         kind: "boolean" as const,
         optional: true,
         brief: "Disable colored output",
+      },
+      "no-isomorphisms": {
+        kind: "boolean" as const,
+        optional: true,
+        brief: "Disable isomorphism expansion during matching",
       },
       cwd: {
         kind: "parsed" as const,
