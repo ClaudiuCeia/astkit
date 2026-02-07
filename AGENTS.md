@@ -46,7 +46,7 @@ Structural code transformation using pattern matching.
 | Concern | Choice | Notes |
 |---------|--------|-------|
 | Code navigation | TypeScript compiler API | Language service for declarations, definitions, references |
-| Structural patching | `@claudiuceia/combine` | Comby-inspired structural matching/rewriting |
+| Structural patching | `@claudiu-ceia/combine` | Comby-inspired structural matching/rewriting |
 | Structural search | TBD | Likely ast-grep or tree-sitter queries |
 | CLI framework | `stricli` | Zero deps, TS-first, nested subcommands, lazy loading |
 | Target runtime | Node.js >=18 / Bun | No runtime-specific APIs in the tool itself |

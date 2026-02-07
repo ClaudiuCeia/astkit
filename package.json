@@ -7,15 +7,17 @@
     "semantic": "./src/cli.ts"
   },
   "scripts": {
-    "dev": "bun src/cli.ts"
+    "dev": "bun src/cli.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "dependencies": {
+    "@stricli/core": "^1.2.5",
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine"
+  },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "@stricli/core": "^1.2.5"
   }
 }
