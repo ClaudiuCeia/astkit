@@ -14,32 +14,32 @@ You can pass the patch document either:
 ## CLI
 
 ```bash
-semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
 ```
 
 Examples:
 
 ```bash
 # patch document from file
-semantic patch rules/const-to-let.spatch src --cwd /repo
+astkit patch rules/const-to-let.spatch src --cwd /repo
 
 # inline patch document
-semantic patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 
 # preview only
-semantic patch rules/const-to-let.spatch src --dry-run
+astkit patch rules/const-to-let.spatch src --dry-run
 
 # structured JSON output
-semantic patch rules/const-to-let.spatch src --json
+astkit patch rules/const-to-let.spatch src --json
 
 # interactive apply mode
-semantic patch rules/const-to-let.spatch src --interactive
+astkit patch rules/const-to-let.spatch src --interactive
 ```
 
 ## API
 
 ```ts
-import { patchProject } from "semantic";
+import { patchProject } from "astkit";
 
 await patchProject(patchInput, {
   cwd: "/repo",       // optional, default process.cwd()

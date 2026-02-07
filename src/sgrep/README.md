@@ -9,17 +9,17 @@ Pattern input can be:
 ## CLI
 
 ```bash
-semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
+astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
 ```
 
 Examples:
 
 ```bash
 # inline pattern
-semantic search 'const :[name] = :[value];' src
+astkit search 'const :[name] = :[value];' src
 
 # pattern from file
-semantic search rules/find-const.sgrep src --cwd /repo
+astkit search rules/find-const.sgrep src --cwd /repo
 ```
 
 ## Isomorphisms
@@ -34,7 +34,7 @@ Default rules:
 Disable all isomorphisms with:
 
 ```bash
-semantic search 'const total = :[x] + :[y];' src --no-isomorphisms
+astkit search 'const total = :[x] + :[y];' src --no-isomorphisms
 ```
 
 Developer notes:

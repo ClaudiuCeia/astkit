@@ -25,12 +25,12 @@ const rootRouteMap = buildRouteMap({
     "code-rank": codeRankCommand,
   },
   docs: {
-    brief: "Semantic code intelligence for LLM agents",
+    brief: "Structural and type-aware code tooling for TS/JS",
   },
 });
 
 export const app = buildApplication(rootRouteMap, {
-  name: "semantic",
+  name: "astkit",
   scanner: {
     caseStyle: "original",
   },

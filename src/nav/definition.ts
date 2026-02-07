@@ -1,5 +1,6 @@
 import path from "node:path";
-import { buildCommand, numberParser } from "@stricli/core";
+import { buildCommand } from "@stricli/core";
+import { parseFilePosition, type FilePosition } from "./location.ts";
 import { createService, toPosition, fromPosition, relativePath } from "../service.ts";
 
 interface DefinitionLocation {
@@ -58,15 +59,13 @@ export function getDefinition(filePath: string, line: number, character: number)
   return { symbol, definitions };
 }
 
-export const definitionCommand = buildCommand<{}, [string, number, number]>({
+export const definitionCommand = buildCommand<{}, [FilePosition]>({
   func(
     this: { process: { stdout: { write(s: string): void } } },
     _flags: {},
-    file: string,
-    line: number,
-    character: number,
+    location: FilePosition,
   ) {
-    const result = getDefinition(file, line, character);
+    const result = getDefinition(location.file, location.line, location.character);
     this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   },
   parameters: {
@@ -74,19 +73,9 @@ export const definitionCommand = buildCommand<{}, [string, number, number]>({
       kind: "tuple" as const,
       parameters: [
         {
-          brief: "Source file",
-          placeholder: "file",
-          parse: (input: string) => input,
-        },
-        {
-          brief: "Line number (1-indexed)",
-          placeholder: "line",
-          parse: numberParser,
-        },
-        {
-          brief: "Character position (1-indexed)",
-          placeholder: "character",
-          parse: numberParser,
+          brief: "Location (<file>:<line>:<character>)",
+          placeholder: "location",
+          parse: parseFilePosition,
         },
       ],
     },
