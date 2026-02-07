@@ -9,7 +9,7 @@ Pattern input can be:
 ## CLI
 
 ```bash
-semantic search <pattern-input> [scope] [--cwd <path>]
+semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--json]
 ```
 
 Examples:

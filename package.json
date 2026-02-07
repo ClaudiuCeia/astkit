@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine",
-    "@stricli/core": "^1.2.5"
+    "@stricli/core": "^1.2.5",
+    "chalk": "^5.6.2"
   },
   "peerDependencies": {
     "typescript": "^5"
