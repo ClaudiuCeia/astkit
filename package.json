@@ -3,10 +3,19 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "semantic": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun src/cli.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@stricli/core": "^1.2.5"
   }
 }
