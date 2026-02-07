@@ -11,6 +11,25 @@ You can pass the patch document either:
 - inline as a string
 - as a file path
 
+## CLI
+
+```bash
+semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run]
+```
+
+Examples:
+
+```bash
+# patch document from file
+semantic patch rules/const-to-let.spatch src --cwd /repo
+
+# inline patch document
+semantic patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+
+# preview only
+semantic patch rules/const-to-let.spatch src --dry-run
+```
+
 ## API
 
 ```ts

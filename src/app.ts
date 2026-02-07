@@ -2,6 +2,7 @@ import { buildApplication, buildRouteMap, text_en } from "@stricli/core";
 import { declarationsCommand } from "./nav/declarations.ts";
 import { definitionCommand } from "./nav/definition.ts";
 import { referencesCommand } from "./nav/references.ts";
+import { patchCommand } from "./patch/patch.ts";
 
 const navRouteMap = buildRouteMap({
   routes: {
@@ -20,10 +21,12 @@ const navRouteMap = buildRouteMap({
 const rootRouteMap = buildRouteMap({
   routes: {
     nav: navRouteMap,
+    patch: patchCommand,
   },
   docs: {
     brief: "Semantic code intelligence for LLM agents",
     nav: "Code navigation and reading",
+    patch: "Apply structural rewrite from a patch document",
   },
 });
 
