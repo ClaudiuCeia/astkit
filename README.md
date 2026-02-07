@@ -1,56 +1,158 @@
-# semantic
+# astkit
 
-`semantic` is a CLI for code intelligence workflows used by LLM agents and developers in TypeScript/JavaScript projects.
+`astkit` is a CLI for structural code inspection and navigation in TypeScript/JavaScript projects.
+It operates on AST structure, TypeScript type services, and reference graphs, and is designed for token-efficient workflows used by LLM agents and senior engineers.
 
-It currently provides:
-- `nav`: TypeScript language-service navigation
-- `search`: structural pattern search (`sgrep`)
-- `patch`: structural rewrite (`spatch`)
-- `code-rank`: reference-based symbol ranking
+## What astkit provides
 
-## Why this exists
+- Definition and reference navigation via the TypeScript language service
+- Structural search and rewrite using AST-shaped patterns
+- Reference-based symbol ranking as an impact heuristic
 
-LLM-driven editing workflows usually lose time and context budget on:
-- regex-only search with noisy results
-- manual multi-file patching
-- reading full files when signatures or spans are enough
+## Non-Goals
 
-`semantic` focuses on compact, machine-usable output and structural matching.
+`astkit` does not:
+- infer program intent or meaning
+- perform whole-program flow analysis
+- prove correctness or enforce architecture
+- replace the TypeScript compiler or type checker
+- make decisions automatically
+- guarantee behavioral equivalence after rewrites
 
 ## Install
 
 ```bash
-bun install
+npm install --save-dev astkit typescript
 ```
+
+`astkit` uses the project's `typescript` installation for type services.
 
 ## Run
 
 ```bash
-bun run src/cli.ts <command> [args]
+npx astkit <command> [args]
 ```
 
 Or via the bin entry:
 
 ```bash
-semantic <command> [args]
+astkit <command> [args]
 ```
 
-## CLI Overview
+## Install Skill (Codex)
+
+From an installed npm package:
+
+```bash
+npx skills add ./node_modules/astkit/skills/astkit-tooling -a codex
+```
+
+From this repository:
+
+```bash
+npm run skill:install
+```
+
+## CLI Reference
+
+General help:
+
+```bash
+astkit --help
+astkit <command> --help
+```
+
+Full command surface:
+
+```bash
+astkit nav declarations <file>
+astkit nav definition <location>
+astkit nav references <location>
+astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] <pattern-input> [scope]
+astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--cwd <path>] <patch-input> [scope]
+astkit code-rank [--json] [--limit <n>] [--cwd <path>] [scope]
+```
 
 ### `nav`
 
 ```bash
-semantic nav declarations <file>
-semantic nav definition <file> <line> <character>
-semantic nav references <file> <line> <character>
+astkit nav declarations <file>
+astkit nav definition <location>
+astkit nav references <location>
 ```
 
-All line/character positions are 1-indexed.
+`<location>` format:
+- `path/to/file.ts:120:17`
+
+Line and character are 1-indexed.
+
+Mock execution:
+
+```bash
+$ astkit nav declarations src/__tests__/fixtures/simple.ts
+{
+  "file": "src/__tests__/fixtures/simple.ts",
+  "declarations": [
+    {
+      "name": "User",
+      "kind": "interface",
+      "signature": "User",
+      "line": 1
+    },
+    {
+      "name": "UserService",
+      "kind": "class",
+      "signature": "UserService",
+      "line": 7
+    }
+  ]
+}
+
+$ astkit nav definition src/__tests__/fixtures/importer.ts:1:15
+{
+  "symbol": "User",
+  "definitions": [
+    {
+      "file": "src/__tests__/fixtures/simple.ts",
+      "line": 1,
+      "character": 18,
+      "kind": "interface",
+      "containerName": "\".../simple\""
+    }
+  ]
+}
+
+$ astkit nav references src/__tests__/fixtures/simple.ts:1:18
+{
+  "symbol": "interface User",
+  "definition": {
+    "file": "src/__tests__/fixtures/simple.ts",
+    "line": 1,
+    "character": 18
+  },
+  "references": [
+    {
+      "file": "src/__tests__/fixtures/simple.ts",
+      "line": 1,
+      "character": 18,
+      "isDefinition": true,
+      "isWriteAccess": true
+    },
+    {
+      "file": "src/__tests__/fixtures/importer.ts",
+      "line": 1,
+      "character": 15,
+      "isDefinition": false,
+      "isWriteAccess": true
+    }
+  ]
+}
+```
 
 ### `search` (`sgrep`)
 
 ```bash
-semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
+astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
 ```
 
 - Default output is compact, file-grouped text
@@ -58,25 +160,60 @@ semantic search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomor
 - `--no-color` disables coloring
 - Isomorphism expansion is enabled by default (commutative binary operators, object-literal key order, redundant parentheses)
 - `--no-isomorphisms` disables isomorphism expansion
-- `--json` prints full structured result
+- `--json` prints structured result
 
 Examples:
 
 ```bash
 # inline pattern
-semantic search 'const :[name] = :[value];' src
+astkit search 'const :[name] = :[value];' src
 
 # pattern loaded from file
-semantic search rules/find-const.sgrep src --cwd /repo
+astkit search rules/find-const.sgrep src --cwd /repo
 
 # machine output
-semantic search --json 'const :[name] = :[value];' src
+astkit search --json 'const :[name] = :[value];' src
+```
+
+Mock execution:
+
+```bash
+$ astkit search 'const :[name] = :[value];' src
+//src/example.ts
+12: const foo = 42;
+27: const bar = makeValue( ...
+
+$ astkit search --json 'const :[name] = :[value];' src
+{
+  "scope": "/repo/src",
+  "pattern": "const :[name] = :[value];",
+  "filesScanned": 24,
+  "filesMatched": 2,
+  "totalMatches": 3,
+  "files": [
+    {
+      "file": "src/example.ts",
+      "matchCount": 2,
+      "matches": [
+        {
+          "line": 12,
+          "character": 1,
+          "matched": "const foo = 42;",
+          "captures": {
+            "name": "foo",
+            "value": "42"
+          }
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### `patch` (`spatch`)
 
 ```bash
-semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
 ```
 
 - `patch-input` can be inline patch text or a file path
@@ -89,13 +226,34 @@ semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-c
 Example:
 
 ```bash
-semantic patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+```
+
+Mock execution:
+
+```bash
+$ astkit patch --dry-run $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+diff --git a/src/example.ts b/src/example.ts
+--- a/src/example.ts
++++ b/src/example.ts
+@@ -12,1 +12,1 @@
+-const foo = 42;
++let foo = 42;
+1 file changed, 1 replacement, (dry-run)
+
+$ astkit patch --interactive $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+------------------------------------------------------------------------
+Change 1/2: src/example.ts:12
+@@ -12,1 +12,1 @@
+-const foo = 42;
++let foo = 42;
+Choice [y/n/a/q] (default: n): y
 ```
 
 ### `code-rank`
 
 ```bash
-semantic code-rank [scope] [--cwd <path>] [--limit <n>] [--json]
+astkit code-rank [scope] [--cwd <path>] [--limit <n>] [--json]
 ```
 
 - Ranks exported symbols by TypeScript reference strength
@@ -106,7 +264,33 @@ semantic code-rank [scope] [--cwd <path>] [--limit <n>] [--json]
 Example:
 
 ```bash
-semantic code-rank src --limit 20
+astkit code-rank src --limit 20
+```
+
+Mock execution:
+
+```bash
+$ astkit code-rank src --limit 3
+1. score=14 refs=3 ext=3 files=2 function hot src/a.ts:1:8
+2. score=9 refs=2 ext=2 files=1 function warm src/a.ts:5:8
+3. score=6 refs=1 ext=1 files=1 interface User src/model.ts:1:18
+
+$ astkit code-rank src --limit 1 --json
+{
+  "scope": "/repo/src",
+  "symbolsRanked": 1,
+  "symbols": [
+    {
+      "symbol": "hot",
+      "kind": "function",
+      "file": "src/a.ts",
+      "line": 1,
+      "character": 8,
+      "score": 14,
+      "referenceCount": 3
+    }
+  ]
+}
 ```
 
 ## Structural Pattern Syntax
@@ -126,7 +310,7 @@ Repeated named holes enforce equality:
 
 This matches `foo + foo` but not `foo + bar`.
 
-Hole captures are structurally balanced (brackets/strings/comments), which avoids malformed partial matches.
+Hole captures are structurally balanced (brackets/strings/comments), which helps avoid malformed partial matches.
 
 ## Output Examples
 
@@ -145,7 +329,7 @@ JSON `search` output (`--json`) includes:
 - line/character
 - captures
 
-`patch` output is JSON by default, including match and replacement stats per file.
+`patch --json` includes structured match and replacement stats per file.
 
 ## Programmatic API
 
@@ -155,7 +339,7 @@ Root exports:
 - `rankCode` from `src/code-rank`
 
 ```ts
-import { patchProject, rankCode, searchProject } from "semantic";
+import { patchProject, rankCode, searchProject } from "astkit";
 ```
 
 See detailed internals:
@@ -163,6 +347,18 @@ See detailed internals:
 - `src/sgrep/README.md`
 
 ## Development
+
+Run local CLI:
+
+```bash
+bun run astkit -- <command> [args]
+```
+
+Build distributable output:
+
+```bash
+npm run build
+```
 
 Run tests:
 
@@ -173,7 +369,19 @@ bun test
 Run typecheck:
 
 ```bash
-bunx tsc --noEmit
+npm run typecheck
+```
+
+Preview npm package contents:
+
+```bash
+npm run pack:check
+```
+
+Install this repo's skill locally for Codex:
+
+```bash
+npm run skill:install
 ```
 
 ## Code Organization

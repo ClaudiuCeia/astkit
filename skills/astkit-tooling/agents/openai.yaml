@@ -1,0 +1,4 @@
+interface:
+  display_name: "Astkit Structural Tooling"
+  short_description: "Token-efficient structural code inspection"
+  default_prompt: "Use $astkit-tooling to map boundaries, invariants, flow, and change hotspots before proposing edits."

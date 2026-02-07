@@ -1,17 +1,59 @@
 {
-  "name": "semantic",
-  "module": "index.ts",
+  "name": "astkit",
+  "version": "0.1.0",
+  "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClaudiuCeia/astkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ClaudiuCeia/astkit/issues"
+  },
+  "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
   "type": "module",
-  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
-    "semantic": "./src/cli.ts"
+    "astkit": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "skills/astkit-tooling"
+  ],
+  "keywords": [
+    "typescript",
+    "javascript",
+    "ast",
+    "codemod",
+    "code-search",
+    "code-navigation",
+    "llm-tools"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
+    "astkit": "bun run src/cli.ts",
     "dev": "bun src/cli.ts",
-    "test": "bun test"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepack": "npm run build",
+    "pack:check": "npm_config_cache=.npm-cache npm pack --dry-run",
+    "skill:install": "npx skills add ./skills/astkit-tooling -a codex -y"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine",

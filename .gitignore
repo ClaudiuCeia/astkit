@@ -25,6 +25,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # caches
 .eslintcache
 .cache
+.npm-cache
 *.tsbuildinfo
 
 # IntelliJ based IDEs
@@ -32,3 +33,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# project-local agent skill installs
+.agents/
+.claude/

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "semantic",
+      "name": "astkit",
       "dependencies": {
         "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine",
         "@stricli/core": "^1.2.5",
