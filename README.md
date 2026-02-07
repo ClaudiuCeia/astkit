@@ -73,11 +73,15 @@ semantic search --json 'const :[name] = :[value];' src
 ### `patch` (`spatch`)
 
 ```bash
-semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run]
+semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
 ```
 
 - `patch-input` can be inline patch text or a file path
 - Patch format uses `+`/`-`/context lines in one document
+- Default output is compact diff-style text
+- `--json` prints structured output
+- `--no-color` disables color in compact output
+- `--interactive` lets you accept/reject each match
 
 Example:
 

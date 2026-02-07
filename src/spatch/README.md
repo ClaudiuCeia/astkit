@@ -14,7 +14,7 @@ You can pass the patch document either:
 ## CLI
 
 ```bash
-semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run]
+semantic patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
 ```
 
 Examples:
@@ -28,6 +28,12 @@ semantic patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 
 # preview only
 semantic patch rules/const-to-let.spatch src --dry-run
+
+# structured JSON output
+semantic patch rules/const-to-let.spatch src --json
+
+# interactive apply mode
+semantic patch rules/const-to-let.spatch src --interactive
 ```
 
 ## API
