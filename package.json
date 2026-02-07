@@ -14,8 +14,8 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "@stricli/core": "^1.2.5",
-    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine"
+    "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine",
+    "@stricli/core": "^1.2.5"
   },
   "peerDependencies": {
     "typescript": "^5"
