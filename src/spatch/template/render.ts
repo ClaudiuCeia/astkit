@@ -1,0 +1,33 @@
+import { tokenizeTemplate } from "./syntax.ts";
+
+export function renderTemplate(
+  source: string,
+  captures: Record<string, string>,
+): string {
+  if (source.length === 0) {
+    return "";
+  }
+
+  const tokens = tokenizeTemplate(source);
+  let rendered = "";
+
+  for (const token of tokens) {
+    if (token.kind === "text") {
+      rendered += token.value;
+      continue;
+    }
+
+    if (token.anonymous) {
+      continue;
+    }
+
+    const value = captures[token.name];
+    if (value === undefined) {
+      throw new Error(`Replacement uses unknown hole "${token.name}".`);
+    }
+
+    rendered += value;
+  }
+
+  return rendered;
+}

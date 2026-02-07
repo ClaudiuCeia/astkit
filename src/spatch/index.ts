@@ -1,4 +1,7 @@
-export { patchProject, spatch } from "./spatch.ts";
+export {
+  patchProject,
+  spatch,
+} from "./spatch.ts";
 export type {
   SpatchFileResult,
   SpatchOccurrence,
