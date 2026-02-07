@@ -79,3 +79,4 @@ bun test
 - Use `bun test` with `import { test, expect } from "bun:test"` for tests
 - TypeScript strict mode
 - Prefer small, focused modules — one command per file
+- Use semantic commit messages (e.g., `feat: add nav declarations command`, `fix: correct line/character parsing in nav definition`)
