@@ -6,6 +6,7 @@ It currently provides:
 - `nav`: TypeScript language-service navigation
 - `search`: structural pattern search (`sgrep`)
 - `patch`: structural rewrite (`spatch`)
+- `code-rank`: reference-based symbol ranking
 
 ## Why this exists
 
@@ -89,6 +90,23 @@ Example:
 semantic patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 ```
 
+### `code-rank`
+
+```bash
+semantic code-rank [scope] [--cwd <path>] [--limit <n>] [--json]
+```
+
+- Ranks exported symbols by TypeScript reference strength
+- Uses the TypeScript language service (`findReferences`)
+- Default output is compact, one symbol per line
+- `--json` prints structured output
+
+Example:
+
+```bash
+semantic code-rank src --limit 20
+```
+
 ## Structural Pattern Syntax
 
 Both `search` and `patch` use the same hole/metavariable syntax:
@@ -132,9 +150,10 @@ JSON `search` output (`--json`) includes:
 Root exports:
 - `patchProject` from `src/spatch`
 - `searchProject` from `src/sgrep`
+- `rankCode` from `src/code-rank`
 
 ```ts
-import { patchProject, searchProject } from "semantic";
+import { patchProject, rankCode, searchProject } from "semantic";
 ```
 
 See detailed internals:

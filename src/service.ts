@@ -7,7 +7,10 @@ export interface Service {
   projectRoot: string;
 }
 
-export function createService(projectDir: string, targetFile?: string): Service {
+export function createService(
+  projectDir: string,
+  targetFile?: string | readonly string[],
+): Service {
   const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists);
 
   let compilerOptions: ts.CompilerOptions;
@@ -29,9 +32,10 @@ export function createService(projectDir: string, targetFile?: string): Service 
     projectRoot = projectDir;
   }
 
-  // Ensure targetFile is in the file list
-  if (targetFile) {
-    const resolved = path.resolve(targetFile);
+  // Ensure requested target files are in the language-service file set.
+  const targetFiles = normalizeTargetFiles(targetFile);
+  for (const requestedFile of targetFiles) {
+    const resolved = path.resolve(requestedFile);
     if (!fileNames.includes(resolved)) {
       fileNames.push(resolved);
     }
@@ -57,6 +61,20 @@ export function createService(projectDir: string, targetFile?: string): Service 
   const program = service.getProgram()!;
 
   return { service, program, projectRoot };
+}
+
+function normalizeTargetFiles(
+  targetFile: string | readonly string[] | undefined,
+): readonly string[] {
+  if (targetFile === undefined) {
+    return [];
+  }
+
+  if (typeof targetFile === "string") {
+    return [targetFile];
+  }
+
+  return [...targetFile];
 }
 
 /** Convert 1-indexed line:character to 0-indexed offset */

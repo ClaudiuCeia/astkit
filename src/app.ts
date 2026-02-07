@@ -1,4 +1,5 @@
 import { buildApplication, buildRouteMap, text_en } from "@stricli/core";
+import { codeRankCommand } from "./code-rank/code-rank.ts";
 import { declarationsCommand } from "./nav/declarations.ts";
 import { definitionCommand } from "./nav/definition.ts";
 import { referencesCommand } from "./nav/references.ts";
@@ -21,6 +22,7 @@ const rootRouteMap = buildRouteMap({
     nav: navRouteMap,
     search: searchCommand,
     patch: patchCommand,
+    "code-rank": codeRankCommand,
   },
   docs: {
     brief: "Semantic code intelligence for LLM agents",
