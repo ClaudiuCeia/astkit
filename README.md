@@ -22,7 +22,7 @@ It operates on AST structure, TypeScript type services, and reference graphs, an
 ## Install
 
 ```bash
-npm install --save-dev astkit typescript
+npm install --save-dev @claudiu.ceia/astkit typescript
 ```
 
 `astkit` uses the project's `typescript` installation for type services.
@@ -30,7 +30,7 @@ npm install --save-dev astkit typescript
 ## Run
 
 ```bash
-npx astkit <command> [args]
+npx @claudiu.ceia/astkit <command> [args]
 ```
 
 Or via the bin entry:
@@ -44,7 +44,7 @@ astkit <command> [args]
 From an installed npm package:
 
 ```bash
-npx skills add ./node_modules/astkit/skills/astkit-tooling -a codex
+npx skills add ./node_modules/@claudiu.ceia/astkit/skills/astkit-tooling -a codex
 ```
 
 From this repository:
@@ -339,7 +339,7 @@ Root exports:
 - `rankCode` from `src/code-rank`
 
 ```ts
-import { patchProject, rankCode, searchProject } from "astkit";
+import { patchProject, rankCode, searchProject } from "@claudiu.ceia/astkit";
 ```
 
 See detailed internals:
