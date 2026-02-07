@@ -1,4 +1,4 @@
-import { User, UserService, createUser, Role } from "./simple.ts";
+import { type User, UserService, createUser, Role } from "./simple.ts";
 
 const service = new UserService();
 

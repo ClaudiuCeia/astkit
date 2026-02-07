@@ -1,7 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { collectPatchableFiles } from "../files.ts";
-import { compileTemplate, findTemplateMatches, renderTemplate } from "../template.ts";
+import {
+  compileTemplate,
+  findTemplateMatches,
+  renderTemplate,
+} from "../../pattern/index.ts";
 import { createLineStarts, toLineCharacter } from "../text.ts";
 import type { SpatchFileResult, SpatchOptions } from "../types.ts";
 import type { ParsedPatchSpec } from "./parse.ts";

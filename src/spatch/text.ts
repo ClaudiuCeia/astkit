@@ -14,12 +14,16 @@ export function toLineCharacter(
   lineStarts: readonly number[],
   index: number,
 ): { line: number; character: number } {
+  if (lineStarts.length === 0) {
+    return { line: 1, character: Math.max(index + 1, 1) };
+  }
+
   let low = 0;
   let high = lineStarts.length - 1;
 
   while (low <= high) {
     const middle = Math.floor((low + high) / 2);
-    const start = lineStarts[middle];
+    const start = lineStarts[middle] ?? 0;
     const nextStart = lineStarts[middle + 1] ?? Number.POSITIVE_INFINITY;
 
     if (start <= index && index < nextStart) {
@@ -35,8 +39,9 @@ export function toLineCharacter(
   }
 
   const fallback = lineStarts[lineStarts.length - 1] ?? 0;
+  const line = Math.max(lineStarts.length, 1);
   return {
-    line: lineStarts.length,
+    line,
     character: Math.max(index - fallback + 1, 1),
   };
 }

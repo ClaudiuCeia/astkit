@@ -113,8 +113,12 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
   return { file: relativePath(projectRoot, resolved), declarations };
 }
 
-export const declarationsCommand = buildCommand({
-  func(this: { process: { stdout: { write(s: string): void } } }, _flags, file: string) {
+export const declarationsCommand = buildCommand<{}, [string]>({
+  func(
+    this: { process: { stdout: { write(s: string): void } } },
+    _flags: {},
+    file: string,
+  ) {
     const result = getDeclarations(file);
     this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   },

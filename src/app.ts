@@ -3,6 +3,7 @@ import { declarationsCommand } from "./nav/declarations.ts";
 import { definitionCommand } from "./nav/definition.ts";
 import { referencesCommand } from "./nav/references.ts";
 import { patchCommand } from "./patch/patch.ts";
+import { searchCommand } from "./search/search.ts";
 
 const navRouteMap = buildRouteMap({
   routes: {
@@ -12,21 +13,17 @@ const navRouteMap = buildRouteMap({
   },
   docs: {
     brief: "Code navigation and reading",
-    declarations: "List exported declarations and type signatures",
-    definition: "Go to definition at position",
-    references: "Find all references at position",
   },
 });
 
 const rootRouteMap = buildRouteMap({
   routes: {
     nav: navRouteMap,
+    search: searchCommand,
     patch: patchCommand,
   },
   docs: {
     brief: "Semantic code intelligence for LLM agents",
-    nav: "Code navigation and reading",
-    patch: "Apply structural rewrite from a patch document",
   },
 });
 

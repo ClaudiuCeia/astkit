@@ -58,8 +58,14 @@ export function getDefinition(filePath: string, line: number, character: number)
   return { symbol, definitions };
 }
 
-export const definitionCommand = buildCommand({
-  func(this: { process: { stdout: { write(s: string): void } } }, _flags, file: string, line: number, character: number) {
+export const definitionCommand = buildCommand<{}, [string, number, number]>({
+  func(
+    this: { process: { stdout: { write(s: string): void } } },
+    _flags: {},
+    file: string,
+    line: number,
+    character: number,
+  ) {
     const result = getDefinition(file, line, character);
     this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   },

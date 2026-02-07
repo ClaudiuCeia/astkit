@@ -15,9 +15,9 @@ afterAll(() => {
 });
 
 test("resolves definition of imported symbol", () => {
-  // In importer.ts line 1: import { User, UserService, createUser, Role } from "./simple.ts";
-  // "User" starts at character 10
-  const result = getDefinition("importer.ts", 1, 10);
+  // In importer.ts line 1: import { type User, UserService, createUser, Role } from "./simple.ts";
+  // "User" starts at character 15
+  const result = getDefinition("importer.ts", 1, 15);
 
   expect(result.definitions.length).toBeGreaterThan(0);
   const def = result.definitions[0]!;
