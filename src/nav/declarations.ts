@@ -19,6 +19,7 @@ interface DeclarationInfo {
   members?: MemberInfo[];
   doc?: string;
   endLine?: number;
+  declarationText?: string;
 }
 
 interface DeclarationsOutput {
@@ -36,26 +37,30 @@ export function formatDeclarationsOutput(
   result: DeclarationsOutput,
   options: FormatDeclarationsOutputOptions = {},
 ): string {
-  const lines: string[] = [];
+  const lines: Array<{ line?: number; content: string }> = [];
   const chalkInstance = buildChalk(options);
   const useColor = chalkInstance.level > 0;
   const header = `//${result.file}`;
-  lines.push(useColor ? chalkInstance.gray(header) : header);
+  lines.push({ content: useColor ? chalkInstance.gray(header) : header });
 
   if (result.doc && result.doc.trim().length > 0) {
-    lines.push("");
-    lines.push(...renderDocBlock(result.doc, "", chalkInstance));
-    lines.push("");
+    lines.push({ content: "" });
+    for (const content of renderDocBlock(result.doc, "", chalkInstance)) {
+      lines.push({ content });
+    }
+    lines.push({ content: "" });
   }
 
   const declarations = [...result.declarations].sort((a, b) => a.line - b.line);
   for (const decl of declarations) {
     if (decl.doc && decl.doc.trim().length > 0) {
-      lines.push(...renderDocBlock(decl.doc, "", chalkInstance));
+      for (const content of renderDocBlock(decl.doc, "", chalkInstance)) {
+        lines.push({ content });
+      }
     }
 
     const declLine = formatDeclarationLine(decl, chalkInstance);
-    lines.push(formatLineWithNumber(decl.line, declLine, chalkInstance));
+    lines.push({ line: decl.line, content: declLine });
 
     const isBlock =
       decl.kind === "class" || decl.kind === "interface" || decl.kind === "enum";
@@ -64,31 +69,100 @@ export function formatDeclarationsOutput(
         const members = [...decl.members].sort((a, b) => a.line - b.line);
         for (const member of members) {
           if (member.doc && member.doc.trim().length > 0) {
-            lines.push(...renderDocBlock(member.doc, "  ", chalkInstance));
+            for (const content of renderDocBlock(member.doc, "  ", chalkInstance)) {
+              lines.push({ content });
+            }
           }
-          lines.push(
-            formatLineWithNumber(
-              member.line,
-              `  ${formatMemberLine(member, decl.kind, chalkInstance)}`,
-              chalkInstance,
-            ),
-          );
+          lines.push({
+            line: member.line,
+            content: `  ${formatMemberLine(member, decl.kind, chalkInstance)}`,
+          });
         }
       }
 
       const endLine = decl.endLine ?? decl.line;
-      lines.push(formatLineWithNumber(endLine, "}", chalkInstance));
+      lines.push({ line: endLine, content: formatClosingBrace(chalkInstance) });
     }
 
-    lines.push("");
+    lines.push({ content: "" });
   }
 
-  // Trim the final blank line if present.
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
+  // Trim trailing blank lines.
+  while (lines.length > 0 && lines[lines.length - 1]?.content === "") {
     lines.pop();
   }
 
-  return lines.join("\n");
+  const maxLine = lines.reduce((max, entry) => {
+    if (typeof entry.line !== "number") return max;
+    return Math.max(max, entry.line);
+  }, 0);
+  const width = Math.max(1, String(maxLine).length);
+
+  const outLines: string[] = [];
+  for (const entry of lines) {
+    // Preserve the top header line as-is for easy grepping.
+    if (entry.content.startsWith("//")) {
+      outLines.push(entry.content);
+      continue;
+    }
+
+    if (entry.content === "") {
+      outLines.push(formatGutterBullet(width, chalkInstance));
+      continue;
+    }
+
+    if (typeof entry.line === "number") {
+      outLines.push(
+        ...formatEntryLines(
+          entry.content,
+          `${formatGutterLine(entry.line, width, chalkInstance)} `,
+          `${formatGutterBullet(width, chalkInstance)} `,
+          formatGutterBullet(width, chalkInstance),
+        ),
+      );
+      continue;
+    }
+
+    outLines.push(
+      ...formatEntryLines(
+        entry.content,
+        `${formatGutterBullet(width, chalkInstance)} `,
+        `${formatGutterBullet(width, chalkInstance)} `,
+        formatGutterBullet(width, chalkInstance),
+      ),
+    );
+  }
+
+  // Trim trailing bullet lines.
+  while (outLines.length > 0 && outLines[outLines.length - 1] === formatGutterBullet(width, chalkInstance)) {
+    outLines.pop();
+  }
+
+  return outLines.join("\n");
+}
+
+function formatEntryLines(
+  content: string,
+  firstPrefix: string,
+  continuationPrefix: string,
+  blankLine: string,
+): string[] {
+  const parts = content.split("\n");
+  const out: string[] = [];
+
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i] ?? "";
+    const trimmed = part.trimEnd();
+    if (trimmed.length === 0) {
+      out.push(blankLine);
+      continue;
+    }
+
+    const prefix = i === 0 ? firstPrefix : continuationPrefix;
+    out.push(`${prefix}${trimmed}`);
+  }
+
+  return out;
 }
 
 function formatDeclarationLine(decl: DeclarationInfo, chalkInstance: ChalkInstance): string {
@@ -97,9 +171,13 @@ function formatDeclarationLine(decl: DeclarationInfo, chalkInstance: ChalkInstan
   const nm = (value: string) => (useColor ? chalkInstance.yellow(value) : value);
   const ty = (value: string) => (useColor ? chalkInstance.green(value) : value);
 
+  if (decl.declarationText) {
+    return highlightExportedDeclaration(decl.declarationText, kw, nm, ty);
+  }
+
   switch (decl.kind) {
     case "function": {
-      return `${kw("export")} ${kw("function")} ${nm(decl.name)}${formatCallableSignature(decl.signature, ty)}`;
+      return `${kw("export")} ${kw("function")} ${nm(decl.name)}${formatCallableSignature(decl.signature, kw, nm, ty)}`;
     }
     case "const":
       return `${kw("export")} ${kw("const")} ${nm(decl.name)}: ${ty(decl.signature)}`;
@@ -120,6 +198,8 @@ function formatDeclarationLine(decl: DeclarationInfo, chalkInstance: ChalkInstan
 
 function formatCallableSignature(
   rawSignature: string,
+  formatKeyword: (kw: string) => string,
+  formatName: (name: string) => string,
   formatType: (type: string) => string,
 ): string {
   // `typeToString` for functions/methods is typically `(args) => ret`.
@@ -128,7 +208,7 @@ function formatCallableSignature(
     if (arrowMatch) {
       const params = arrowMatch[1] ?? "";
       const returnType = arrowMatch[2] ?? "unknown";
-      return `(${params}): ${formatType(returnType)}`;
+      return `(${highlightParameters(params, formatKeyword, formatName, formatType)}): ${formatType(returnType)}`;
     }
   }
 
@@ -184,6 +264,11 @@ function highlightMemberSignature(
     return `${formatKeyword(kw)} ${formatName(name)}`;
   });
 
+  // Highlight parameter lists (best-effort).
+  out = out.replace(/\(([^)]*)\)/g, (_m, params) => {
+    return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
+  });
+
   // Highlight member name before `(` or `:`.
   out = out.replace(/(^|\s)([A-Za-z_$][A-Za-z0-9_$]*)(\s*(\(|:))/g, (_m, prefix, name, suffix) => {
     return `${prefix}${formatName(name)}${suffix}`;
@@ -202,14 +287,46 @@ function highlightMemberSignature(
   return out;
 }
 
-function formatLineWithNumber(
-  line: number,
-  content: string,
-  chalkInstance: ChalkInstance,
+function highlightParameters(
+  params: string,
+  formatKeyword: (value: string) => string,
+  formatName: (value: string) => string,
+  formatType: (value: string) => string,
 ): string {
-  const useColor = chalkInstance.level > 0;
-  const prefix = `${line}: `;
-  return `${useColor ? chalkInstance.gray(prefix) : prefix}${content}`;
+  const segments = splitTopLevelCommaList(params);
+  const rendered = segments.map((segment) => {
+    const text = segment.trim();
+    if (text.length === 0) {
+      return "";
+    }
+
+    // Handle `...rest: T`
+    const restMatch = text.match(/^\.\.\.\s*(.+)$/);
+    const restPrefix = restMatch ? "... " : "";
+    const core = restMatch ? (restMatch[1] ?? "").trim() : text;
+
+    // Handle `name?: Type = ...` (default values are preserved in `core`).
+    const defaultSplit = splitTopLevel(core, "=");
+    const beforeDefault = defaultSplit.head.trimEnd();
+    const defaultValue = defaultSplit.tail ? defaultSplit.tail.trimStart() : null;
+
+    const typedSplit = splitTopLevel(beforeDefault, ":");
+    const beforeType = typedSplit.head.trimEnd();
+    const typeText = typedSplit.tail ? typedSplit.tail.trimStart() : null;
+
+    // Highlight parameter name when it looks like an identifier.
+    const nameMatch = beforeType.match(/^([A-Za-z_$][A-Za-z0-9_$]*)(\??)$/);
+    const namePart = nameMatch
+      ? `${formatName(nameMatch[1]!)}${nameMatch[2] ?? ""}`
+      : beforeType;
+
+    const typePart = typeText ? `${formatType(typeText)}` : null;
+    const typed = typePart ? `${namePart}: ${typePart}` : namePart;
+    const withDefault = defaultValue ? `${typed} = ${defaultValue}` : typed;
+    return `${restPrefix}${withDefault}`;
+  });
+
+  return rendered.filter((p) => p.length > 0).join(", ");
 }
 
 function renderDocBlock(
@@ -235,6 +352,191 @@ function renderDocBlock(
   }
   lines.push(docColor(`${indent} */`));
   return lines;
+}
+
+function formatClosingBrace(chalkInstance: ChalkInstance): string {
+  return chalkInstance.level > 0 ? chalkInstance.cyan("}") : "}";
+}
+
+function formatGutterLine(line: number, width: number, chalkInstance: ChalkInstance): string {
+  const useColor = chalkInstance.level > 0;
+  const gutter = `${String(line).padStart(width)}:`;
+  return useColor ? chalkInstance.gray(gutter) : gutter;
+}
+
+function formatGutterBullet(width: number, chalkInstance: ChalkInstance): string {
+  const useColor = chalkInstance.level > 0;
+  const bullet = `${" ".repeat(Math.max(0, width - 1))}•`;
+  return useColor ? chalkInstance.gray(bullet) : bullet;
+}
+
+function splitTopLevelCommaList(text: string): string[] {
+  if (text.trim().length === 0) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  let cursor = 0;
+  let depthParen = 0;
+  let depthBracket = 0;
+  let depthBrace = 0;
+  let inSingle = false;
+  let inDouble = false;
+  let inTemplate = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (inSingle) {
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === "\"") inDouble = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (ch === "`") inTemplate = false;
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inDouble = true;
+      continue;
+    }
+    if (ch === "`") {
+      inTemplate = true;
+      continue;
+    }
+
+    if (ch === "(") depthParen += 1;
+    else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
+    else if (ch === "[") depthBracket += 1;
+    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
+    else if (ch === "{") depthBrace += 1;
+    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
+
+    if (ch === "," && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+      parts.push(text.slice(cursor, i));
+      cursor = i + 1;
+    }
+  }
+
+  parts.push(text.slice(cursor));
+  return parts;
+}
+
+function splitTopLevel(text: string, separator: string): { head: string; tail: string | null } {
+  let depthParen = 0;
+  let depthBracket = 0;
+  let depthBrace = 0;
+  let inSingle = false;
+  let inDouble = false;
+  let inTemplate = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (inSingle) {
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === "\"") inDouble = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (ch === "`") inTemplate = false;
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inDouble = true;
+      continue;
+    }
+    if (ch === "`") {
+      inTemplate = true;
+      continue;
+    }
+
+    if (ch === "(") depthParen += 1;
+    else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
+    else if (ch === "[") depthBracket += 1;
+    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
+    else if (ch === "{") depthBrace += 1;
+    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
+
+    if (ch === separator && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+      return {
+        head: text.slice(0, i),
+        tail: text.slice(i + 1),
+      };
+    }
+  }
+
+  return { head: text, tail: null };
+}
+
+function highlightExportedDeclaration(
+  text: string,
+  formatKeyword: (value: string) => string,
+  formatName: (value: string) => string,
+  formatType: (value: string) => string,
+): string {
+  let out = text;
+
+  // Keywords.
+  out = out.replace(
+    /\b(export|declare|default|async|function|class|interface|enum|type|const|let|var|extends|implements|namespace|module)\b/g,
+    (m) => formatKeyword(m),
+  );
+
+  // Identifier after `class|interface|enum|function|type|const`.
+  out = out.replace(
+    /\b(class|interface|enum|function|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
+    (_m, kw, name) => `${formatKeyword(kw)} ${formatName(name)}`,
+  );
+
+  // Params in parens.
+  out = out.replace(/\(([^)]*)\)/g, (_m, params) => {
+    return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
+  });
+
+  // Types after `:`.
+  out = out.replace(/:\s*([^=<{][^=]*)$/g, (_m, type) => {
+    return `: ${formatType(type.trim())}`;
+  });
+
+  return out;
 }
 
 function buildChalk(options: FormatDeclarationsOutputOptions): ChalkInstance {
@@ -464,6 +766,62 @@ function buildInterfaceMemberInfo(
   return { name: "<member>", signature: fallbackText, line: pos.line, doc };
 }
 
+function buildDeclarationText(
+  sourceFile: ts.SourceFile,
+  declaration: ts.Declaration,
+): string | null {
+  if (ts.isFunctionDeclaration(declaration) && declaration.name) {
+    const name = declaration.name.getText(sourceFile);
+    const tparams = declaration.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
+    const params = declaration.parameters.map((p) => p.getText(sourceFile)).join(", ");
+    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
+    const returnType = declaration.type ? declaration.type.getText(sourceFile) : "";
+    const returnText = returnType.length > 0 ? `: ${returnType}` : "";
+    return `export function ${name}${tparamText}(${params})${returnText}`;
+  }
+
+  if (ts.isClassDeclaration(declaration) && declaration.name) {
+    const name = declaration.name.getText(sourceFile);
+    const heritage = declaration.heritageClauses?.map((h) => h.getText(sourceFile)).join(" ") ?? "";
+    const suffix = heritage.length > 0 ? ` ${heritage}` : "";
+    return `export class ${name}${suffix} {`;
+  }
+
+  if (ts.isInterfaceDeclaration(declaration)) {
+    const name = declaration.name.getText(sourceFile);
+    const heritage = declaration.heritageClauses?.map((h) => h.getText(sourceFile)).join(" ") ?? "";
+    const suffix = heritage.length > 0 ? ` ${heritage}` : "";
+    return `export interface ${name}${suffix} {`;
+  }
+
+  if (ts.isEnumDeclaration(declaration)) {
+    const name = declaration.name.getText(sourceFile);
+    return `export enum ${name} {`;
+  }
+
+  if (ts.isTypeAliasDeclaration(declaration)) {
+    const name = declaration.name.getText(sourceFile);
+    const tparams = declaration.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
+    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
+    const rhs = collapseWhitespace(declaration.type.getText(sourceFile));
+    return `export type ${name}${tparamText} = ${rhs}`;
+  }
+
+  if (ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)) {
+    const name = declaration.name.getText(sourceFile);
+    const typeText = declaration.type ? declaration.type.getText(sourceFile) : "";
+    const typed = typeText.length > 0 ? `: ${typeText}` : "";
+    // We only get here for exported variables (via symbol exports).
+    return collapseWhitespace(`export const ${name}${typed}`);
+  }
+
+  return null;
+}
+
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
 export function getDeclarations(filePath: string): DeclarationsOutput {
   const resolved = path.resolve(filePath);
   const { program, projectRoot } = createService(process.cwd(), resolved);
@@ -495,6 +853,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     if (declaration.getSourceFile().fileName !== resolved) continue;
 
     const kind = getDeclarationKind(declaration);
+    const declarationText = buildDeclarationText(sourceFile, declaration);
     const type = (() => {
       // Prefer expanding type aliases to their RHS, so output resembles `deno doc`.
       if (ts.isTypeAliasDeclaration(declaration)) {
@@ -527,6 +886,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       line: pos.line,
       doc: formatDoc(exp, typeChecker),
       endLine: endPos.line,
+      declarationText: declarationText ?? undefined,
     };
 
     // For classes and interfaces, enumerate members in source order.
