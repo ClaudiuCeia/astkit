@@ -67,6 +67,12 @@ test("compileTemplate rejects adjacent holes", () => {
   );
 });
 
+test("compileTemplate hints about escaping literals for unclosed holes", () => {
+  expect(() => compileTemplate("const :[name] = ':[value';")).toThrow(
+    "Hint:",
+  );
+});
+
 test("renderTemplate rejects unknown holes", () => {
   expect(() => renderTemplate("let :[missing] = 1;", { name: "value" })).toThrow(
     'Replacement uses unknown hole "missing".',

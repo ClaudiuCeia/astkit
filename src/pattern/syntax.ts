@@ -119,7 +119,11 @@ const templateTokensParser = map(
 export function tokenizeTemplate(source: string): TemplateToken[] {
   const parsed = templateTokensParser({ text: source, index: 0 });
   if (!parsed.success) {
-    throw new Error(`Invalid template: ${formatErrorCompact(parsed)}`);
+    const base = formatErrorCompact(parsed);
+    const hint = buildTemplateParseHint(source, base);
+    throw new Error(
+      hint.length > 0 ? `Invalid template: ${base}\nHint: ${hint}` : `Invalid template: ${base}`,
+    );
   }
 
   let ellipsisIndex = 0;
@@ -203,4 +207,17 @@ function resolveRawToken(
       `Invalid regex constraint for hole "${token.name}": ${message}`,
     );
   }
+}
+
+function buildTemplateParseHint(source: string, baseError: string): string {
+  // When `:[` or `...` appear in source text they are treated as special tokens
+  // unless escaped (e.g. `\\:[` or `\\...`).
+  const hasUnclosedHole =
+    source.lastIndexOf(":[") >= 0 && source.indexOf("]", source.lastIndexOf(":[") + 2) < 0;
+
+  if (hasUnclosedHole && baseError.includes("closing ']'")) {
+    return "If you meant a literal `:[` sequence (not a hole), escape it as `\\\\:[` (and `\\\\...` for a literal `...`).";
+  }
+
+  return "";
 }
