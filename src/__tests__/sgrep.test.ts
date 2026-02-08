@@ -273,6 +273,24 @@ test("searchProject avoids duplicate spans from isomorphism variants", async () 
   }
 });
 
+test("searchProject supports escaping special tokens as literals", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+
+  try {
+    await writeFile(path.join(workspace, "sample.ts"), "const foo = ':[value';\n", "utf8");
+
+    const result = await searchProject("const :[name] = '\\:[value';", {
+      cwd: workspace,
+      scope: ".",
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.files[0]?.matches[0]?.captures).toEqual({ name: "foo" });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("searchProject matches parenthesized variants through isomorphism expansion", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
 

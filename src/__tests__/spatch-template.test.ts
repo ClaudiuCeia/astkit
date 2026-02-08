@@ -117,3 +117,17 @@ test("renderTemplate can reuse ellipsis capture in replacement", () => {
   const rendered = renderTemplate("bar(:[x], ...);", matches[0]!.captures);
   expect(rendered).toBe("bar(first, second, third);");
 });
+
+test("compileTemplate allows escaping hole opener and ellipsis as literal text", () => {
+  const holeLiteral = compileTemplate("const :[name] = '\\:[value';");
+  const holeMatches = findTemplateMatches(
+    "const foo = ':[value';\n",
+    holeLiteral,
+  );
+  expect(holeMatches.length).toBe(1);
+  expect(holeMatches[0]?.captures).toEqual({ name: "foo" });
+
+  const dotsLiteral = compileTemplate('const dots = "\\...";');
+  const dotsMatches = findTemplateMatches('const dots = "...";\n', dotsLiteral);
+  expect(dotsMatches.length).toBe(1);
+});

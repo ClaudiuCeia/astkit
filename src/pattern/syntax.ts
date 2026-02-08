@@ -84,12 +84,17 @@ const ellipsisTokenParser = map(str("..."), () => ({
   kind: "ellipsis",
 } satisfies RawEllipsisToken));
 
+const escapedTextTokenParser = map(
+  seq(str("\\"), any(str("..."), str(":["), anyChar())),
+  ([, value]) => ({ kind: "text", value } satisfies TextToken),
+);
+
 const textTokenParser = map(
   mapJoin(
     many1(
       minus(
         anyChar(),
-        any(str("..."), str(":[")),
+        any(str("..."), str(":["), str("\\")),
       ),
     ),
   ),
@@ -97,7 +102,17 @@ const textTokenParser = map(
 );
 
 const templateTokensParser = map(
-  seq(many(any(holeTokenParser, ellipsisTokenParser, textTokenParser)), eof()),
+  seq(
+    many(
+      any(
+        holeTokenParser,
+        ellipsisTokenParser,
+        escapedTextTokenParser,
+        textTokenParser,
+      ),
+    ),
+    eof(),
+  ),
   ([tokens]) => tokens as RawTemplateToken[],
 );
 
