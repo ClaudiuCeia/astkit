@@ -1,6 +1,6 @@
-# semantic
+# astkit
 
-CLI tool providing semantic code intelligence for LLM agents working with TypeScript projects.
+CLI tool providing structural code intelligence for LLM agents working with TypeScript projects.
 
 ## Problem
 
@@ -16,21 +16,21 @@ Three tool categories exposed as CLI subcommands:
 ### `nav` — code navigation and reading
 Read code through declarations and type signatures, not raw file contents.
 
-- `semantic nav declarations <file>` — list exported signatures (no bodies)
-- `semantic nav definition <file> <line> <character>` — go to definition
-- `semantic nav references <file> <line> <character>` — find all references
+- `astkit nav declarations <file>` — list exported signatures (no bodies)
+- `astkit nav definition <file> <line> <character>` — go to definition
+- `astkit nav references <file> <line> <character>` — find all references
 
-### `search` — syntactic/semantic grep
+### `search` — syntactic/structural grep
 Structural pattern matching that understands code syntax.
 
-- `semantic search <pattern> [scope]` — syntactic structural search
-- `semantic search --type <type-query> [scope]` — type-aware search (TS compiler)
+- `astkit search <pattern> [scope]` — syntactic structural search
+- `astkit search --type <type-query> [scope]` — type-aware search (TS compiler)
 
-### `patch` — syntactic/semantic rewrite
+### `patch` — syntactic/structural rewrite
 Structural code transformation using pattern matching.
 
-- `semantic patch <pattern> <replacement> [scope]` — structural rewrite
-- `semantic patch --dry-run <pattern> <replacement> [scope]` — preview changes
+- `astkit patch <pattern> <replacement> [scope]` — structural rewrite
+- `astkit patch --dry-run <pattern> <replacement> [scope]` — preview changes
 
 ## Design principles
 
@@ -79,4 +79,4 @@ bun test
 - Use `bun test` with `import { test, expect } from "bun:test"` for tests
 - TypeScript strict mode
 - Prefer small, focused modules — one command per file
-- Use semantic commit messages (e.g., `feat: add nav declarations command`, `fix: correct line/character parsing in nav definition`)
+- Use conventional commit messages (e.g., `feat: add nav declarations command`, `fix: correct line/character parsing in nav definition`)

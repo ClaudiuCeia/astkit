@@ -5,12 +5,13 @@
     "": {
       "name": "astkit",
       "dependencies": {
-        "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine",
+        "@claudiu-ceia/combine": "^0.2.4",
         "@stricli/core": "^1.2.5",
         "chalk": "^5.6.2",
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "typescript": "^5.9.3",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -18,11 +19,7 @@
     },
   },
   "packages": {
-    "@claudiu-ceia/combine": ["@jsr/claudiu-ceia__combine@0.2.3", "https://npm.jsr.io/~/11/@jsr/claudiu-ceia__combine/0.2.3.tgz", { "dependencies": { "@jsr/std__assert": "^1.0.17" } }, "sha512-LdCyRm0KGaQhRDH5vTLejp9ZXYQ4kLSJDbbuBrIM0DpuFBxPbvo2b2Am/oia4n7nikctngHUUylHmWseRBNRTw=="],
-
-    "@jsr/std__assert": ["@jsr/std__assert@1.0.18", "https://npm.jsr.io/~/11/@jsr/std__assert/1.0.18.tgz", { "dependencies": { "@jsr/std__internal": "^1.0.12" } }, "sha512-oxE6Go+SQJcAc8UVtocaAkKOO39QyyYrb2cwLy7PojoHOrWnCyMe5E3ItmVWjiqOjCceHofwTSmnXxcU8GTSFw=="],
-
-    "@jsr/std__internal": ["@jsr/std__internal@1.0.12", "https://npm.jsr.io/~/11/@jsr/std__internal/1.0.12.tgz", {}, "sha512-6xReMW9p+paJgqoFRpOE2nogJFvzPfaLHLIlyADYjKMUcwDyjKZxryIbgcU+gxiTygn8yCjld1HoI0ET4/iZeA=="],
+    "@claudiu-ceia/combine": ["@claudiu-ceia/combine@0.2.4", "", {}, "sha512-YSlerV3lUz/BdJpjlcPDGFqb/ckfDFBidMnWI69jAEm6NVYDbThQ99CJrsoaUcyvM42lQ7Aj7KDzCMsOEVvMIw=="],
 
     "@stricli/core": ["@stricli/core@1.2.5", "", {}, "sha512-+afyztQW7fwWkqmU2WQZbdc3LjnZThWYdtE0l+hykZ1Rvy7YGxZSvsVCS/wZ/2BNv117pQ9TU1GZZRIcPnB4tw=="],
 
