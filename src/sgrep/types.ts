@@ -13,6 +13,9 @@ export type SgrepOptions = {
   excludedDirectories?: readonly string[];
   encoding?: BufferEncoding;
   isomorphisms?: boolean;
+  concurrency?: number;
+  verbose?: number;
+  logger?: (line: string) => void;
 };
 
 export type SgrepMatch = {

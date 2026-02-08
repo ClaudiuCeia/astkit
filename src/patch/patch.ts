@@ -1,6 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { stdin as processStdin, stdout as processStdout } from "node:process";
+import {
+  stderr as processStderr,
+  stdin as processStdin,
+  stdout as processStdout,
+} from "node:process";
 import { createInterface } from "node:readline/promises";
 import { buildCommand } from "@stricli/core";
 import chalk, { Chalk, type ChalkInstance } from "chalk";
@@ -17,6 +21,8 @@ export type PatchCommandFlags = {
   json?: boolean;
   "no-color"?: boolean;
   cwd?: string;
+  concurrency?: number;
+  verbose?: number;
 };
 
 type InteractiveChoice = "yes" | "no" | "all" | "quit";
@@ -56,9 +62,12 @@ export async function runPatchCommand(
   }
 
   return patchProject(patchInput, {
+    concurrency: flags.concurrency,
     cwd: patchCwd,
     dryRun: flags["dry-run"] ?? false,
     scope: patchScope,
+    verbose: flags.verbose,
+    logger: flags.verbose ? (line) => processStderr.write(`${line}\n`) : undefined,
   });
 }
 
@@ -140,6 +149,32 @@ export const patchCommand = buildCommand({
   },
   parameters: {
     flags: {
+      concurrency: {
+        kind: "parsed" as const,
+        optional: true,
+        brief: "Max files processed concurrently (default: 8)",
+        placeholder: "n",
+        parse: (input: string) => {
+          const value = Number(input);
+          if (!Number.isFinite(value) || value <= 0) {
+            throw new Error("--concurrency must be a positive number");
+          }
+          return Math.floor(value);
+        },
+      },
+      verbose: {
+        kind: "parsed" as const,
+        optional: true,
+        brief: "Print perf tracing (1=summary, 2=includes slow files)",
+        placeholder: "level",
+        parse: (input: string) => {
+          const value = Number(input);
+          if (!Number.isFinite(value) || value < 0) {
+            throw new Error("--verbose must be a non-negative number");
+          }
+          return Math.floor(value);
+        },
+      },
       interactive: {
         kind: "boolean" as const,
         optional: true,

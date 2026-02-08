@@ -50,12 +50,16 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "bench": "bun run bench/run.ts",
+    "bench:baseline": "bun run bench/baseline.ts",
+    "bench:check": "bun run bench/check.ts",
     "prepack": "npm run build",
     "pack:check": "npm pack --dry-run",
     "skill:install": "npx skills@latest add ./skills/astkit-tooling -a codex -y"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "mitata": "^1.0.34",
     "typescript": "^5.9.3"
   },
   "dependencies": {

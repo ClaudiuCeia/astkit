@@ -8,6 +8,8 @@ export type SearchCommandFlags = {
   "no-isomorphisms"?: boolean;
   "no-color"?: boolean;
   json?: boolean;
+  concurrency?: number;
+  verbose?: number;
 };
 
 export async function runSearchCommand(
@@ -16,9 +18,12 @@ export async function runSearchCommand(
   flags: SearchCommandFlags,
 ): Promise<SgrepResult> {
   return searchProject(patternInput, {
+    concurrency: flags.concurrency,
     cwd: flags.cwd,
     isomorphisms: !(flags["no-isomorphisms"] ?? false),
     scope: scope ?? ".",
+    verbose: flags.verbose,
+    logger: flags.verbose ? (line) => process.stderr.write(`${line}\n`) : undefined,
   });
 }
 
@@ -246,6 +251,32 @@ export const searchCommand = buildCommand({
   },
   parameters: {
     flags: {
+      concurrency: {
+        kind: "parsed" as const,
+        optional: true,
+        brief: "Max files processed concurrently (default: 8)",
+        placeholder: "n",
+        parse: (input: string) => {
+          const value = Number(input);
+          if (!Number.isFinite(value) || value <= 0) {
+            throw new Error("--concurrency must be a positive number");
+          }
+          return Math.floor(value);
+        },
+      },
+      verbose: {
+        kind: "parsed" as const,
+        optional: true,
+        brief: "Print perf tracing to stderr (1=summary, 2=includes slow files)",
+        placeholder: "level",
+        parse: (input: string) => {
+          const value = Number(input);
+          if (!Number.isFinite(value) || value < 0) {
+            throw new Error("--verbose must be a non-negative number");
+          }
+          return Math.floor(value);
+        },
+      },
       json: {
         kind: "boolean" as const,
         optional: true,

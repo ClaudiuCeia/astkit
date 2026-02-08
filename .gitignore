@@ -37,3 +37,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # project-local agent skill installs
 .agents/
 .claude/
+
+# benchmarks
+bench/baseline.json
+bench/last-run.json
+
+# cpu profiles
+*.cpuprofile

@@ -27,6 +27,9 @@ export type SpatchOptions = {
   extensions?: readonly string[];
   excludedDirectories?: readonly string[];
   encoding?: BufferEncoding;
+  concurrency?: number;
+  verbose?: number;
+  logger?: (line: string) => void;
 };
 
 export type SpatchOccurrence = {
