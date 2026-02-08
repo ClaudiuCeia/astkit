@@ -118,3 +118,11 @@ test("formats declarations as compact text by default", () => {
   expect(output).toContain("email:");
   expect(output).toContain("findById:");
 });
+
+test("includes jsdoc blocks when available", () => {
+  const result = getDeclarations(path.resolve(fixturesDir, "..", "..", "service.ts"));
+  const output = formatDeclarationsOutput(result);
+
+  expect(output).toContain("Convert 1-indexed line:character to 0-indexed offset");
+  expect(output).toContain("Get relative path from project root");
+});

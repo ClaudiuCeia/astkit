@@ -7,6 +7,7 @@ interface MemberInfo {
   name: string;
   signature: string;
   line: number;
+  doc?: string;
 }
 
 interface DeclarationInfo {
@@ -15,6 +16,7 @@ interface DeclarationInfo {
   signature: string;
   line: number;
   members?: MemberInfo[];
+  doc?: string;
 }
 
 interface DeclarationsOutput {
@@ -29,13 +31,22 @@ export function formatDeclarationsOutput(result: DeclarationsOutput): string {
   const declarations = [...result.declarations].sort((a, b) => a.line - b.line);
   for (const decl of declarations) {
     lines.push(`${decl.line}: ${formatDeclarationLine(decl)}`);
+    pushDoc(lines, decl.doc, "");
 
     if (decl.members && decl.members.length > 0) {
       const members = [...decl.members].sort((a, b) => a.line - b.line);
       for (const member of members) {
         lines.push(`${member.line}:   ${member.name}: ${member.signature}`);
+        pushDoc(lines, member.doc, "  ");
       }
     }
+
+    lines.push("");
+  }
+
+  // Trim the final blank line if present.
+  while (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
   }
 
   return lines.join("\n");
@@ -71,6 +82,44 @@ function formatDeclarationLine(decl: DeclarationInfo): string {
     default:
       return `export ${decl.kind} ${decl.name}: ${decl.signature}`;
   }
+}
+
+function pushDoc(lines: string[], doc: string | undefined, extraIndent: string): void {
+  const normalized = (doc ?? "").trim();
+  if (normalized.length === 0) {
+    return;
+  }
+
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trimEnd();
+    if (line.length === 0) {
+      continue;
+    }
+    lines.push(`    ${extraIndent}${line}`);
+  }
+}
+
+function formatDoc(
+  symbol: ts.Symbol,
+  checker: ts.TypeChecker,
+): string {
+  const parts = symbol.getDocumentationComment(checker);
+  const text = ts.displayPartsToString(parts).trim();
+
+  const tags = symbol.getJsDocTags().map((tag) => {
+    const body = (tag.text ?? []).map((p) => p.text).join("").trim();
+    return body.length > 0 ? `@${tag.name} ${body}` : `@${tag.name}`;
+  });
+
+  const docLines: string[] = [];
+  if (text.length > 0) {
+    docLines.push(text);
+  }
+  for (const tag of tags) {
+    docLines.push(tag);
+  }
+
+  return docLines.join("\n").trim();
 }
 
 function getDeclarationKind(declaration: ts.Declaration): string {
@@ -140,6 +189,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       kind,
       signature,
       line: pos.line,
+      doc: formatDoc(exp, typeChecker),
     };
 
     // For classes and interfaces, enumerate members
@@ -164,6 +214,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
           name: prop.getName(),
           signature: propSignature,
           line: propPos.line,
+          doc: formatDoc(prop, typeChecker),
         });
       }
 
