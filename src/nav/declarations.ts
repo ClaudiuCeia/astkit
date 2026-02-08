@@ -208,7 +208,7 @@ function formatCallableSignature(
     if (arrowMatch) {
       const params = arrowMatch[1] ?? "";
       const returnType = arrowMatch[2] ?? "unknown";
-      return `(${highlightParameters(params, formatKeyword, formatName, formatType)}): ${formatType(returnType)}`;
+      return `(${params}): ${formatType(returnType)}`;
     }
   }
 
@@ -264,11 +264,6 @@ function highlightMemberSignature(
     return `${formatKeyword(kw)} ${formatName(name)}`;
   });
 
-  // Highlight the outer-most parameter list only (avoid breaking on nested parens in types).
-  out = highlightOuterParamList(out, (params) => {
-    return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
-  });
-
   // Highlight member name before `(` or `:`.
   out = out.replace(/(^|\s)([A-Za-z_$][A-Za-z0-9_$]*)(\s*(\(|:))/g, (_m, prefix, name, suffix) => {
     return `${prefix}${formatName(name)}${suffix}`;
@@ -285,137 +280,6 @@ function highlightMemberSignature(
   });
 
   return out;
-}
-
-function highlightParameters(
-  params: string,
-  formatKeyword: (value: string) => string,
-  formatName: (value: string) => string,
-  formatType: (value: string) => string,
-): string {
-  const segments = splitTopLevelCommaList(params);
-  const rendered = segments.map((segment) => {
-    const text = segment.trim();
-    if (text.length === 0) {
-      return "";
-    }
-
-    // Handle `...rest: T`
-    const restMatch = text.match(/^\.\.\.\s*(.+)$/);
-    const restPrefix = restMatch ? "... " : "";
-    const core = restMatch ? (restMatch[1] ?? "").trim() : text;
-
-    // Handle `name?: Type = ...` (default values are preserved in `core`).
-    const defaultSplit = splitTopLevel(core, "=");
-    const beforeDefault = defaultSplit.head.trimEnd();
-    const defaultValue = defaultSplit.tail ? defaultSplit.tail.trimStart() : null;
-
-    const typedSplit = splitTopLevel(beforeDefault, ":");
-    const beforeType = typedSplit.head.trimEnd();
-    const typeText = typedSplit.tail ? typedSplit.tail.trimStart() : null;
-
-    // Highlight parameter name when it looks like an identifier.
-    const nameMatch = beforeType.match(/^([A-Za-z_$][A-Za-z0-9_$]*)(\??)$/);
-    const namePart = nameMatch
-      ? `${formatName(nameMatch[1]!)}${nameMatch[2] ?? ""}`
-      : beforeType;
-
-    const typePart = typeText ? `${formatType(typeText)}` : null;
-    const typed = typePart ? `${namePart}: ${typePart}` : namePart;
-    const withDefault = defaultValue ? `${typed} = ${defaultValue}` : typed;
-    return `${restPrefix}${withDefault}`;
-  });
-
-  return rendered.filter((p) => p.length > 0).join(", ");
-}
-
-function highlightOuterParamList(
-  text: string,
-  replace: (params: string) => string,
-): string {
-  const open = findOutermostParenSpan(text);
-  if (!open) {
-    return text;
-  }
-
-  const { start, end } = open;
-  const params = text.slice(start + 1, end);
-  return `${text.slice(0, start)}${replace(params)}${text.slice(end + 1)}`;
-}
-
-function findOutermostParenSpan(text: string): { start: number; end: number } | null {
-  let inSingle = false;
-  let inDouble = false;
-  let inTemplate = false;
-  let escape = false;
-
-  let depthParen = 0;
-  let depthBracket = 0;
-  let depthBrace = 0;
-
-  let start = -1;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i]!;
-
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escape = true;
-      continue;
-    }
-
-    if (inSingle) {
-      if (ch === "'") inSingle = false;
-      continue;
-    }
-    if (inDouble) {
-      if (ch === "\"") inDouble = false;
-      continue;
-    }
-    if (inTemplate) {
-      if (ch === "`") inTemplate = false;
-      continue;
-    }
-
-    if (ch === "'") {
-      inSingle = true;
-      continue;
-    }
-    if (ch === "\"") {
-      inDouble = true;
-      continue;
-    }
-    if (ch === "`") {
-      inTemplate = true;
-      continue;
-    }
-
-    // Keep bracket/brace depth so we don't pick parens inside destructuring literals.
-    if (ch === "[") depthBracket += 1;
-    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
-    else if (ch === "{") depthBrace += 1;
-    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
-
-    if (ch === "(") {
-      if (depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
-        start = i;
-      }
-      depthParen += 1;
-      continue;
-    }
-
-    if (ch === ")") {
-      depthParen = Math.max(0, depthParen - 1);
-      if (depthParen === 0 && start >= 0) {
-        return { start, end: i };
-      }
-    }
-  }
-
-  return null;
 }
 
 function renderDocBlock(
@@ -435,9 +299,10 @@ function renderDocBlock(
   for (const rawLine of normalized.split("\n")) {
     const line = rawLine.trimEnd();
     if (line.length === 0) {
-      continue;
+      lines.push(docColor(`${indent} *`));
+    } else {
+      lines.push(docColor(`${indent} * ${line}`));
     }
-    lines.push(docColor(`${indent} * ${line}`));
   }
   lines.push(docColor(`${indent} */`));
   return lines;
@@ -459,142 +324,6 @@ function formatGutterBullet(width: number, chalkInstance: ChalkInstance): string
   return useColor ? chalkInstance.gray(bullet) : bullet;
 }
 
-function splitTopLevelCommaList(text: string): string[] {
-  if (text.trim().length === 0) {
-    return [];
-  }
-
-  const parts: string[] = [];
-  let cursor = 0;
-  let depthParen = 0;
-  let depthBracket = 0;
-  let depthBrace = 0;
-  let inSingle = false;
-  let inDouble = false;
-  let inTemplate = false;
-  let escape = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i]!;
-
-    if (escape) {
-      escape = false;
-      continue;
-    }
-
-    if (ch === "\\") {
-      escape = true;
-      continue;
-    }
-
-    if (inSingle) {
-      if (ch === "'") inSingle = false;
-      continue;
-    }
-    if (inDouble) {
-      if (ch === "\"") inDouble = false;
-      continue;
-    }
-    if (inTemplate) {
-      if (ch === "`") inTemplate = false;
-      continue;
-    }
-
-    if (ch === "'") {
-      inSingle = true;
-      continue;
-    }
-    if (ch === "\"") {
-      inDouble = true;
-      continue;
-    }
-    if (ch === "`") {
-      inTemplate = true;
-      continue;
-    }
-
-    if (ch === "(") depthParen += 1;
-    else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
-    else if (ch === "[") depthBracket += 1;
-    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
-    else if (ch === "{") depthBrace += 1;
-    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
-
-    if (ch === "," && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
-      parts.push(text.slice(cursor, i));
-      cursor = i + 1;
-    }
-  }
-
-  parts.push(text.slice(cursor));
-  return parts;
-}
-
-function splitTopLevel(text: string, separator: string): { head: string; tail: string | null } {
-  let depthParen = 0;
-  let depthBracket = 0;
-  let depthBrace = 0;
-  let inSingle = false;
-  let inDouble = false;
-  let inTemplate = false;
-  let escape = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i]!;
-
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escape = true;
-      continue;
-    }
-
-    if (inSingle) {
-      if (ch === "'") inSingle = false;
-      continue;
-    }
-    if (inDouble) {
-      if (ch === "\"") inDouble = false;
-      continue;
-    }
-    if (inTemplate) {
-      if (ch === "`") inTemplate = false;
-      continue;
-    }
-
-    if (ch === "'") {
-      inSingle = true;
-      continue;
-    }
-    if (ch === "\"") {
-      inDouble = true;
-      continue;
-    }
-    if (ch === "`") {
-      inTemplate = true;
-      continue;
-    }
-
-    if (ch === "(") depthParen += 1;
-    else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
-    else if (ch === "[") depthBracket += 1;
-    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
-    else if (ch === "{") depthBrace += 1;
-    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
-
-    if (ch === separator && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
-      return {
-        head: text.slice(0, i),
-        tail: text.slice(i + 1),
-      };
-    }
-  }
-
-  return { head: text, tail: null };
-}
-
 function highlightExportedDeclaration(
   text: string,
   formatKeyword: (value: string) => string,
@@ -614,11 +343,6 @@ function highlightExportedDeclaration(
     /\b(class|interface|enum|function|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
     (_m, kw, name) => `${formatKeyword(kw)} ${formatName(name)}`,
   );
-
-  // Outer-most param list only.
-  out = highlightOuterParamList(out, (params) => {
-    return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
-  });
 
   // Types after `:`.
   out = out.replace(/:\s*([^=<{][^=]*)$/g, (_m, type) => {
@@ -688,12 +412,19 @@ function extractLeadingFileDoc(sourceFile: ts.SourceFile): string | undefined {
     const body = comment
       .replace(/^\/\*\*/, "")
       .replace(/\*\/$/, "");
-    const lines = body
+    const rawLines = body
       .split("\n")
-      .map((line) => line.replace(/^\s*\*\s?/, "").trimEnd())
-      .map((line) => line.trimEnd())
-      .filter((line) => line.trim().length > 0);
-    const doc = lines.join("\n").trim();
+      .map((line) => line.replace(/^\s*\*\s?/, "").trimEnd());
+
+    // Trim leading/trailing empty lines, keep internal empty lines as paragraph breaks.
+    while (rawLines.length > 0 && rawLines[0]!.trim().length === 0) {
+      rawLines.shift();
+    }
+    while (rawLines.length > 0 && rawLines[rawLines.length - 1]!.trim().length === 0) {
+      rawLines.pop();
+    }
+
+    const doc = rawLines.join("\n").trimEnd();
     if (doc.length > 0) {
       return doc;
     }
@@ -702,6 +433,10 @@ function extractLeadingFileDoc(sourceFile: ts.SourceFile): string | undefined {
 }
 
 function isNonPublicClassMember(member: ts.ClassElement): boolean {
+  if ("name" in member && member.name && ts.isPrivateIdentifier(member.name)) {
+    return true;
+  }
+
   if (ts.isPropertyDeclaration(member) && ts.isPrivateIdentifier(member.name)) {
     return true;
   }
@@ -920,13 +655,14 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     throw new Error(`File not found: ${filePath}`);
   }
 
+  const fileDoc = extractLeadingFileDoc(sourceFile);
   const typeChecker = program.getTypeChecker();
   const moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile);
   if (!moduleSymbol) {
     return {
       file: relativePath(projectRoot, resolved),
       declarations: [],
-      doc: extractLeadingFileDoc(sourceFile),
+      doc: fileDoc,
     };
   }
 
@@ -1009,10 +745,25 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     declarations.push(info);
   }
 
+  // If the "file doc" is actually attached to the first exported declaration,
+  // show it once at the top (more deno-doc-like) and avoid duplicate blocks.
+  if (fileDoc && declarations.length > 0) {
+    let earliest = declarations[0]!;
+    for (const decl of declarations) {
+      if (decl.line < earliest.line) {
+        earliest = decl;
+      }
+    }
+    const normalize = (value: string) => value.replaceAll("\r\n", "\n").trim();
+    if (normalize(earliest.doc ?? "") === normalize(fileDoc)) {
+      earliest.doc = undefined;
+    }
+  }
+
   return {
     file: relativePath(projectRoot, resolved),
     declarations,
-    doc: extractLeadingFileDoc(sourceFile),
+    doc: fileDoc,
   };
 }
 

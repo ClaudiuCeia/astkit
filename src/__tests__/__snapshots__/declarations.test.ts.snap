@@ -1,0 +1,25 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`nav declarations output matches snapshot 1`] = `
+"//nav-docs.ts
+  •
+  • /**
+  •  * File docs go here.
+  •  *
+  •  * Multiple paragraphs should be preserved.
+  •  */
+  •
+  7: export class Foo {
+  •   /**
+  •    * Return a Foo.
+  •    */
+  9:   public static get(): Foo
+  •   /**
+  •    * Make a Bar, maybe.
+  •    * @deprecated old api
+  •    */
+ 17:   public async makeBar(options: { verbose?: boolean } = {}): Promise<null>
+ 23: }
+  •
+135: export const LATE"
+`;

@@ -126,3 +126,9 @@ test("includes jsdoc blocks when available", () => {
   expect(output).toContain("Convert 1-indexed line:character to 0-indexed offset");
   expect(output).toContain("Get relative path from project root");
 });
+
+test("nav declarations output matches snapshot", () => {
+  const result = getDeclarations("nav-docs.ts");
+  const output = formatDeclarationsOutput(result, { color: false });
+  expect(output).toMatchSnapshot();
+});
