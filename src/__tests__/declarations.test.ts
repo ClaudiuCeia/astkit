@@ -116,7 +116,7 @@ test("formats declarations as compact text by default", () => {
   expect(output).toContain("export class UserService");
   expect(output).toContain("export function createUser");
   expect(output).toContain("email:");
-  expect(output).toContain("findById:");
+  expect(output).toContain("findById(");
 });
 
 test("includes jsdoc blocks when available", () => {
