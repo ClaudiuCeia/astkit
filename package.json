@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/astkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
   "license": "MIT",
   "repository": {
