@@ -264,8 +264,8 @@ function highlightMemberSignature(
     return `${formatKeyword(kw)} ${formatName(name)}`;
   });
 
-  // Highlight parameter lists (best-effort).
-  out = out.replace(/\(([^)]*)\)/g, (_m, params) => {
+  // Highlight the outer-most parameter list only (avoid breaking on nested parens in types).
+  out = highlightOuterParamList(out, (params) => {
     return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
   });
 
@@ -327,6 +327,95 @@ function highlightParameters(
   });
 
   return rendered.filter((p) => p.length > 0).join(", ");
+}
+
+function highlightOuterParamList(
+  text: string,
+  replace: (params: string) => string,
+): string {
+  const open = findOutermostParenSpan(text);
+  if (!open) {
+    return text;
+  }
+
+  const { start, end } = open;
+  const params = text.slice(start + 1, end);
+  return `${text.slice(0, start)}${replace(params)}${text.slice(end + 1)}`;
+}
+
+function findOutermostParenSpan(text: string): { start: number; end: number } | null {
+  let inSingle = false;
+  let inDouble = false;
+  let inTemplate = false;
+  let escape = false;
+
+  let depthParen = 0;
+  let depthBracket = 0;
+  let depthBrace = 0;
+
+  let start = -1;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (inSingle) {
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === "\"") inDouble = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (ch === "`") inTemplate = false;
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inDouble = true;
+      continue;
+    }
+    if (ch === "`") {
+      inTemplate = true;
+      continue;
+    }
+
+    // Keep bracket/brace depth so we don't pick parens inside destructuring literals.
+    if (ch === "[") depthBracket += 1;
+    else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
+    else if (ch === "{") depthBrace += 1;
+    else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
+
+    if (ch === "(") {
+      if (depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+        start = i;
+      }
+      depthParen += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      depthParen = Math.max(0, depthParen - 1);
+      if (depthParen === 0 && start >= 0) {
+        return { start, end: i };
+      }
+    }
+  }
+
+  return null;
 }
 
 function renderDocBlock(
@@ -526,8 +615,8 @@ function highlightExportedDeclaration(
     (_m, kw, name) => `${formatKeyword(kw)} ${formatName(name)}`,
   );
 
-  // Params in parens.
-  out = out.replace(/\(([^)]*)\)/g, (_m, params) => {
+  // Outer-most param list only.
+  out = highlightOuterParamList(out, (params) => {
     return `(${highlightParameters(params, formatKeyword, formatName, formatType)})`;
   });
 
