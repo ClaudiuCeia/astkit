@@ -3,7 +3,7 @@ import {
   anyChar,
   cut,
   eof,
-  formatErrorCompact,
+  formatErrorReport,
   many,
   many1,
   map,
@@ -119,10 +119,14 @@ const templateTokensParser = map(
 export function tokenizeTemplate(source: string): TemplateToken[] {
   const parsed = templateTokensParser({ text: source, index: 0 });
   if (!parsed.success) {
-    const base = formatErrorCompact(parsed);
+    const base = formatErrorReport(parsed, {
+      color: false,
+      contextLines: 0,
+      stack: false,
+    });
     const hint = buildTemplateParseHint(source, base);
     throw new Error(
-      hint.length > 0 ? `Invalid template: ${base}\nHint: ${hint}` : `Invalid template: ${base}`,
+      hint.length > 0 ? `Invalid template:\n${base}\nHint: ${hint}` : `Invalid template:\n${base}`,
     );
   }
 

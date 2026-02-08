@@ -5,7 +5,7 @@
     "": {
       "name": "astkit",
       "dependencies": {
-        "@claudiu-ceia/combine": "^0.2.4",
+        "@claudiu-ceia/combine": "^0.2.6",
         "@stricli/core": "^1.2.5",
         "chalk": "^5.6.2",
       },
@@ -20,7 +20,7 @@
     },
   },
   "packages": {
-    "@claudiu-ceia/combine": ["@claudiu-ceia/combine@0.2.4", "", {}, "sha512-YSlerV3lUz/BdJpjlcPDGFqb/ckfDFBidMnWI69jAEm6NVYDbThQ99CJrsoaUcyvM42lQ7Aj7KDzCMsOEVvMIw=="],
+    "@claudiu-ceia/combine": ["@claudiu-ceia/combine@0.2.6", "", {}, "sha512-JQfzEFe2WSpH4o0fynXheYlGwQNfoubi81wTa5u2w2KSqN6XbEf2crMIGXd3l5/WEGupyF408GnU+lUNDGQPvQ=="],
 
     "@stricli/core": ["@stricli/core@1.2.5", "", {}, "sha512-+afyztQW7fwWkqmU2WQZbdc3LjnZThWYdtE0l+hykZ1Rvy7YGxZSvsVCS/wZ/2BNv117pQ9TU1GZZRIcPnB4tw=="],
 
