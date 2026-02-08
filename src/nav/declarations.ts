@@ -335,16 +335,24 @@ function highlightExportedDeclaration(
 ): string {
   let out = text;
 
-  // Keywords.
+  // Highlight `export ... <kind> <Name>` in one pass so ANSI escapes don't break follow-up matches.
   out = out.replace(
-    /\b(export|declare|default|async|function|class|interface|enum|type|const|let|var|extends|implements|namespace|module)\b/g,
-    (m) => formatKeyword(m),
+    /\bexport\s+((?:(?:declare|default|async)\s+)*)\b(function|class|interface|enum|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
+    (_m, modifiers: string, kind: string, name: string) => {
+      const modParts = modifiers
+        .trim()
+        .split(/\s+/)
+        .filter((p) => p.length > 0)
+        .map((p) => `${formatKeyword(p)} `)
+        .join("");
+      return `${formatKeyword("export")} ${modParts}${formatKeyword(kind)} ${formatName(name)}`;
+    },
   );
 
-  // Identifier after `class|interface|enum|function|type|const`.
+  // Remaining keywords (heritage etc).
   out = out.replace(
-    /\b(class|interface|enum|function|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
-    (_m, kw, name) => `${formatKeyword(kw)} ${formatName(name)}`,
+    /\b(extends|implements|namespace|module|declare|default|async)\b/g,
+    (m) => formatKeyword(m),
   );
 
   // Types: for callables, only the return type; for consts, the annotated type.

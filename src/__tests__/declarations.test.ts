@@ -1,5 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
+import { Chalk } from "chalk";
 import { formatDeclarationsOutput, getDeclarations } from "../nav/declarations.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
@@ -131,4 +132,12 @@ test("nav declarations output matches snapshot", () => {
   const result = getDeclarations("nav-docs.ts");
   const output = formatDeclarationsOutput(result, { color: false });
   expect(output).toMatchSnapshot();
+});
+
+test("colors function names in declarations output", () => {
+  const result = getDeclarations("simple.ts");
+  const chalkInstance = new Chalk({ level: 1 });
+  const output = formatDeclarationsOutput(result, { chalkInstance });
+
+  expect(output).toContain(chalkInstance.yellow("createUser"));
 });
