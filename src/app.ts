@@ -6,6 +6,26 @@ import { referencesCommand } from "./nav/references.ts";
 import { patchCommand } from "./patch/patch.ts";
 import { searchCommand } from "./search/search.ts";
 
+function formatCommandException(exc: unknown): string {
+  if (exc instanceof Error) {
+    // Avoid printing stack traces for user-facing command errors by default.
+    return exc.message.length > 0 ? `Error: ${exc.message}` : "Error";
+  }
+  return String(exc);
+}
+
+const text = {
+  ...text_en,
+  exceptionWhileParsingArguments: (exc: unknown) =>
+    `Unable to parse arguments, ${formatCommandException(exc)}`,
+  exceptionWhileLoadingCommandFunction: (exc: unknown) =>
+    `Unable to load command function, ${formatCommandException(exc)}`,
+  exceptionWhileLoadingCommandContext: (exc: unknown) =>
+    `Unable to load command context, ${formatCommandException(exc)}`,
+  exceptionWhileRunningCommand: (exc: unknown) =>
+    `Command failed, ${formatCommandException(exc)}`,
+};
+
 const navRouteMap = buildRouteMap({
   routes: {
     declarations: declarationsCommand,
@@ -39,6 +59,6 @@ export const app = buildApplication(rootRouteMap, {
   },
   localization: {
     defaultLocale: "en",
-    loadText: () => text_en,
+    loadText: () => text,
   },
 });
