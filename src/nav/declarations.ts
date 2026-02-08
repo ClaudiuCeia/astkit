@@ -22,6 +22,57 @@ interface DeclarationsOutput {
   declarations: DeclarationInfo[];
 }
 
+export function formatDeclarationsOutput(result: DeclarationsOutput): string {
+  const lines: string[] = [];
+  lines.push(`//${result.file}`);
+
+  const declarations = [...result.declarations].sort((a, b) => a.line - b.line);
+  for (const decl of declarations) {
+    lines.push(`${decl.line}: ${formatDeclarationLine(decl)}`);
+
+    if (decl.members && decl.members.length > 0) {
+      const members = [...decl.members].sort((a, b) => a.line - b.line);
+      for (const member of members) {
+        lines.push(`${member.line}:   ${member.name}: ${member.signature}`);
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatDeclarationLine(decl: DeclarationInfo): string {
+  switch (decl.kind) {
+    case "function": {
+      // `typeToString` for functions is typically `(args) => ret`.
+      if (decl.signature.startsWith("(")) {
+        const arrowMatch = decl.signature.match(/^\((.*)\)\s*=>\s*(.*)$/);
+        if (arrowMatch) {
+          const params = arrowMatch[1] ?? "";
+          const returnType = arrowMatch[2] ?? "unknown";
+          return `export function ${decl.name}(${params}): ${returnType}`;
+        }
+        return `export function ${decl.name}: ${decl.signature}`;
+      }
+      return `export function ${decl.name}: ${decl.signature}`;
+    }
+    case "const":
+      return `export const ${decl.name}: ${decl.signature}`;
+    case "type":
+      return `export type ${decl.name} = ${decl.signature}`;
+    case "interface":
+      return `export interface ${decl.name}`;
+    case "class":
+      return `export class ${decl.name}`;
+    case "enum":
+      return `export enum ${decl.name}`;
+    case "module":
+      return `export module ${decl.name}`;
+    default:
+      return `export ${decl.kind} ${decl.name}: ${decl.signature}`;
+  }
+}
+
 function getDeclarationKind(declaration: ts.Declaration): string {
   if (ts.isFunctionDeclaration(declaration)) return "function";
   if (ts.isClassDeclaration(declaration)) return "class";
@@ -60,9 +111,23 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     if (declaration.getSourceFile().fileName !== resolved) continue;
 
     const kind = getDeclarationKind(declaration);
-    const type = (kind === "interface" || kind === "class" || kind === "enum" || kind === "type")
-      ? typeChecker.getDeclaredTypeOfSymbol(exp)
-      : typeChecker.getTypeOfSymbol(exp);
+    const type = (() => {
+      // Prefer expanding type aliases to their RHS, so output resembles `deno doc`.
+      if (ts.isTypeAliasDeclaration(declaration)) {
+        return typeChecker.getTypeFromTypeNode(declaration.type);
+      }
+
+      if (
+        kind === "interface"
+        || kind === "class"
+        || kind === "enum"
+        || kind === "type"
+      ) {
+        return typeChecker.getDeclaredTypeOfSymbol(exp);
+      }
+
+      return typeChecker.getTypeOfSymbol(exp);
+    })();
     const signature = typeChecker.typeToString(
       type,
       declaration,
@@ -113,16 +178,32 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
   return { file: relativePath(projectRoot, resolved), declarations };
 }
 
-export const declarationsCommand = buildCommand<{}, [string]>({
+export type DeclarationsCommandFlags = {
+  json?: boolean;
+};
+
+export const declarationsCommand = buildCommand({
   func(
     this: { process: { stdout: { write(s: string): void } } },
-    _flags: {},
+    flags: DeclarationsCommandFlags,
     file: string,
   ) {
     const result = getDeclarations(file);
-    this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    if (flags.json ?? false) {
+      this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      return;
+    }
+
+    this.process.stdout.write(`${formatDeclarationsOutput(result)}\n`);
   },
   parameters: {
+    flags: {
+      json: {
+        kind: "boolean" as const,
+        optional: true,
+        brief: "Output structured JSON instead of compact text",
+      },
+    },
     positional: {
       kind: "tuple" as const,
       parameters: [

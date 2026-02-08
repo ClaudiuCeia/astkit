@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
-import { getDeclarations } from "../nav/declarations.ts";
+import { formatDeclarationsOutput, getDeclarations } from "../nav/declarations.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;
@@ -105,4 +105,16 @@ test("handles file with no exports", () => {
 
   expect(result.declarations.length).toBe(1);
   expect(result.declarations[0]!.name).toBe("getUserRole");
+});
+
+test("formats declarations as compact text by default", () => {
+  const result = getDeclarations("simple.ts");
+  const output = formatDeclarationsOutput(result);
+
+  expect(output.split("\n")[0]).toBe("//simple.ts");
+  expect(output).toContain("export interface User");
+  expect(output).toContain("export class UserService");
+  expect(output).toContain("export function createUser");
+  expect(output).toContain("email:");
+  expect(output).toContain("findById:");
 });
