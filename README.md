@@ -229,6 +229,9 @@ Example:
 astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 ```
 
+Notes:
+- In bash/zsh, `$'...'` enables `\n` escapes for multi-line patch documents. Alternatively, pass a patch file path as `<patch-input>`.
+
 Mock execution:
 
 ```bash
