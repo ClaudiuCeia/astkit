@@ -15,7 +15,7 @@ type CurrentRun = {
   results: Array<{ name: string; avg: number; p50: number; p99: number; kind: string }>;
 };
 
-function parseArgs(argv: string[]): { tolerance: number } {
+function parseArgs(argv: string[]): { tolerance: number; init: boolean } {
   let tolerance = 0.2;
   let init = false;
   for (let i = 0; i < argv.length; i += 1) {
