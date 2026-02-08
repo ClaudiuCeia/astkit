@@ -269,15 +269,18 @@ function highlightMemberSignature(
     return `${prefix}${formatName(name)}${suffix}`;
   });
 
-  // Highlight return type after `):`.
-  out = out.replace(/\)\s*:\s*([^;]+)$/g, (_m, type) => {
-    return `): ${formatType(type)}`;
-  });
-
-  // Highlight property type after `:`.
-  out = out.replace(/:\s*([^;]+)$/g, (_m, type) => {
-    return `: ${formatType(type)}`;
-  });
+  // Highlight types. For callables, only color the return type; for properties, color the RHS type.
+  const returnTypeMatch = out.match(/\)\s*:\s*([^;]+)$/);
+  if (returnTypeMatch) {
+    const type = returnTypeMatch[1] ?? "";
+    out = out.replace(/\)\s*:\s*([^;]+)$/, `): ${formatType(type)}`);
+  } else if (!out.includes("(")) {
+    const propTypeMatch = out.match(/:\s*([^;]+)$/);
+    if (propTypeMatch) {
+      const type = propTypeMatch[1] ?? "";
+      out = out.replace(/:\s*([^;]+)$/, `: ${formatType(type)}`);
+    }
+  }
 
   return out;
 }
@@ -344,10 +347,18 @@ function highlightExportedDeclaration(
     (_m, kw, name) => `${formatKeyword(kw)} ${formatName(name)}`,
   );
 
-  // Types after `:`.
-  out = out.replace(/:\s*([^=<{][^=]*)$/g, (_m, type) => {
-    return `: ${formatType(type.trim())}`;
-  });
+  // Types: for callables, only the return type; for consts, the annotated type.
+  const callableReturnMatch = out.match(/\)\s*:\s*([^=]+)$/);
+  if (callableReturnMatch) {
+    const type = callableReturnMatch[1] ?? "";
+    out = out.replace(/\)\s*:\s*([^=]+)$/, `): ${formatType(type.trim())}`);
+  } else if (!out.includes("(")) {
+    const trailingTypeMatch = out.match(/:\s*([^=]+)$/);
+    if (trailingTypeMatch) {
+      const type = trailingTypeMatch[1] ?? "";
+      out = out.replace(/:\s*([^=]+)$/, `: ${formatType(type.trim())}`);
+    }
+  }
 
   return out;
 }
