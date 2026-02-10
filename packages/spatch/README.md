@@ -14,6 +14,8 @@ You can pass the patch document either:
 ## CLI
 
 ```bash
+spatch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+# or:
 astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
 ```
 
@@ -21,25 +23,25 @@ Examples:
 
 ```bash
 # patch document from file
-astkit patch rules/const-to-let.spatch src --cwd /repo
+spatch rules/const-to-let.spatch src --cwd /repo
 
 # inline patch document
-astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
+spatch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 
 # preview only
-astkit patch rules/const-to-let.spatch src --dry-run
+spatch rules/const-to-let.spatch src --dry-run
 
 # structured JSON output
-astkit patch rules/const-to-let.spatch src --json
+spatch rules/const-to-let.spatch src --json
 
 # interactive apply mode
-astkit patch rules/const-to-let.spatch src --interactive
+spatch rules/const-to-let.spatch src --interactive
 ```
 
 ## API
 
 ```ts
-import { patchProject } from "astkit";
+import { patchProject } from "@claudiu-ceia/spatch";
 
 await patchProject(patchInput, {
   cwd: "/repo",       // optional, default process.cwd()

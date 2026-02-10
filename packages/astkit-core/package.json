@@ -23,6 +23,9 @@
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@claudiu-ceia/combine": "^0.2.6"
   }

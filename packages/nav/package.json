@@ -26,6 +26,9 @@
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@claudiu-ceia/astkit-core": "^0.1.0",
     "@claudiu-ceia/combine": "^0.2.6",

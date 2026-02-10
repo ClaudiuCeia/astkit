@@ -26,11 +26,13 @@
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@claudiu-ceia/astkit-core": "^0.1.0",
     "@stricli/core": "^1.2.5",
     "chalk": "^5.6.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5"
   }
 }
-

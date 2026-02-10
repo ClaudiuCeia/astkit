@@ -9,6 +9,8 @@ Pattern input can be:
 ## CLI
 
 ```bash
+sgrep <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
+# or:
 astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
 ```
 
@@ -16,10 +18,10 @@ Examples:
 
 ```bash
 # inline pattern
-astkit search 'const :[name] = :[value];' src
+sgrep 'const :[name] = :[value];' src
 
 # pattern from file
-astkit search rules/find-const.sgrep src --cwd /repo
+sgrep rules/find-const.sgrep src --cwd /repo
 ```
 
 ## Isomorphisms
@@ -34,13 +36,13 @@ Default rules:
 Disable all isomorphisms with:
 
 ```bash
-astkit search 'const total = :[x] + :[y];' src --no-isomorphisms
+sgrep 'const total = :[x] + :[y];' src --no-isomorphisms
 ```
 
 Developer notes:
-- Rule registry: `src/sgrep/isomorphisms/registry.ts`
-- Rule interface: `src/sgrep/isomorphisms/types.ts`
-- Expansion engine: `src/sgrep/isomorphisms/expand.ts`
+- Rule registry: `src/isomorphisms/registry.ts`
+- Rule interface: `src/isomorphisms/types.ts`
+- Expansion engine: `src/isomorphisms/expand.ts`
 - Adding a new isomorphism only requires creating one rule file and registering it.
 - Patterns containing template wildcard `...` skip AST isomorphism expansion (to avoid ambiguity with JS spread syntax).
 
