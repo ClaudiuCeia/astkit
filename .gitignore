@@ -6,6 +6,10 @@ out
 dist
 *.tgz
 
+# don't commit build outputs accidentally emitted next to TS sources
+packages/**/src/**/*.js
+packages/**/src/**/*.d.ts
+
 # code coverage
 coverage
 *.lcov
