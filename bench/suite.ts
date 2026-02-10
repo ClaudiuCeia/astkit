@@ -1,6 +1,6 @@
 import { bench, group, summary } from "mitata";
-import { searchProject } from "../src/sgrep/sgrep.ts";
-import { patchProject } from "../src/spatch/spatch.ts";
+import { searchProject } from "@claudiu-ceia/sgrep";
+import { patchProject } from "@claudiu-ceia/spatch";
 import { createTsFixture } from "./suites/fixtures.ts";
 
 export function defineBenches(): void {

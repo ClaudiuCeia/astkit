@@ -25,5 +25,14 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
+    ,
+    "baseUrl": ".",
+    "paths": {
+      "@claudiu-ceia/astkit-core": ["packages/astkit-core/src/index.ts"],
+      "@claudiu-ceia/sgrep": ["packages/sgrep/src/index.ts"],
+      "@claudiu-ceia/spatch": ["packages/spatch/src/index.ts"],
+      "@claudiu-ceia/nav": ["packages/nav/src/index.ts"],
+      "@claudiu-ceia/astkit": ["packages/astkit/src/index.ts"]
+    }
   }
 }

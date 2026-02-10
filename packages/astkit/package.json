@@ -1,0 +1,59 @@
+{
+  "name": "@claudiu-ceia/astkit",
+  "version": "0.1.1",
+  "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClaudiuCeia/astkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ClaudiuCeia/astkit/issues"
+  },
+  "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "astkit": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "skills/astkit-tooling"
+  ],
+  "keywords": [
+    "typescript",
+    "javascript",
+    "ast",
+    "codemod",
+    "code-search",
+    "code-navigation",
+    "llm-tools"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@claudiu-ceia/nav": "^0.1.0",
+    "@claudiu-ceia/sgrep": "^0.1.0",
+    "@claudiu-ceia/spatch": "^0.1.0",
+    "@stricli/core": "^1.2.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
+

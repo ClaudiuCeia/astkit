@@ -33,12 +33,11 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Node smoke test (CLI)
-        run: node dist/src/cli.js --help
+      - name: Node smoke test (astkit CLI)
+        run: node packages/astkit/dist/cli.js --help
 
-      - name: Node smoke test (library import)
-        run: node -e "import('./dist/index.js').then(() => console.log('ok'))"
+      - name: Node smoke test (astkit library import)
+        run: node -e "import('./packages/astkit/dist/index.js').then(() => console.log('ok'))"
 
       - name: Test
         run: bun test
-

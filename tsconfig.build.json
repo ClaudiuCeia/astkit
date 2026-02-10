@@ -1,14 +1,11 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "declaration": true,
-    "declarationMap": false,
-    "sourceMap": false,
-    "outDir": "./dist",
-    "rootDir": "./",
-    "rewriteRelativeImportExtensions": true
-  },
-  "include": ["index.ts", "src/**/*.ts"],
-  "exclude": ["src/__tests__/**"]
+  "files": [],
+  "references": [
+    { "path": "./packages/astkit-core/tsconfig.build.json" },
+    { "path": "./packages/spatch/tsconfig.build.json" },
+    { "path": "./packages/sgrep/tsconfig.build.json" },
+    { "path": "./packages/nav/tsconfig.build.json" },
+    { "path": "./packages/astkit/tsconfig.build.json" }
+  ]
 }
+

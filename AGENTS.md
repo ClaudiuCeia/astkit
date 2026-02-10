@@ -66,7 +66,7 @@ bun install
 
 ### Running
 ```sh
-bun run src/cli.ts <command> [args]
+bun run astkit -- <command> [args]
 ```
 
 ### Testing

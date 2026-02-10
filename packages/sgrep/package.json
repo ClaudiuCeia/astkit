@@ -1,0 +1,36 @@
+{
+  "name": "@claudiu-ceia/sgrep",
+  "version": "0.1.0",
+  "description": "Structural grep for TS/JS using metavariable templates.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "sgrep": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@claudiu-ceia/astkit-core": "^0.1.0",
+    "@stricli/core": "^1.2.5",
+    "chalk": "^5.6.2",
+    "typescript": "^5.9.3"
+  }
+}
+

@@ -1,73 +1,31 @@
 {
-  "name": "@claudiu-ceia/astkit",
-  "version": "0.1.1",
-  "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ClaudiuCeia/astkit.git"
-  },
-  "bugs": {
-    "url": "https://github.com/ClaudiuCeia/astkit/issues"
-  },
-  "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
+  "name": "astkit-workspace",
+  "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "bin": {
-    "astkit": "./dist/src/cli.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "skills/astkit-tooling"
+  "workspaces": [
+    "packages/*"
   ],
-  "keywords": [
-    "typescript",
-    "javascript",
-    "ast",
-    "codemod",
-    "code-search",
-    "code-navigation",
-    "llm-tools"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "astkit": "bun run src/cli.ts",
-    "dev": "bun src/cli.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "astkit": "bun run packages/astkit/src/cli.ts",
+    "sgrep": "bun run packages/sgrep/src/cli.ts",
+    "spatch": "bun run packages/spatch/src/cli.ts",
+    "nav": "bun run packages/nav/src/cli.ts",
+    "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "bench": "bun run bench/run.ts",
     "bench:baseline": "bun run bench/baseline.ts",
     "bench:check": "bun run bench/check.ts",
-    "prepack": "npm run build",
-    "pack:check": "npm pack --dry-run",
-    "skill:install": "npx skills@latest add ./skills/astkit-tooling -a codex -y"
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "pack:check": "npm -w @claudiu-ceia/astkit pack --dry-run",
+    "skill:install": "npx skills@latest add ./packages/astkit/skills/astkit-tooling -a codex -y"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.28.1",
     "@types/bun": "latest",
     "mitata": "^1.0.34",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@claudiu-ceia/combine": "^0.2.6",
-    "@stricli/core": "^1.2.5",
-    "chalk": "^5.6.2"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   }
 }
