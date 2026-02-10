@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { rankCode } from "../code-rank/rank.ts";
+import { rankCode } from "../src/code-rank/rank.ts";
 
 test("rankCode sorts symbols by reference strength", async () => {
   const workspace = await createRankFixtureWorkspace();

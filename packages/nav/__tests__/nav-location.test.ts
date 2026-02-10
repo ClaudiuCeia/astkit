@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseFilePosition } from "../nav/location.ts";
+import { parseFilePosition } from "../src/nav/location.ts";
 
 test("parses colon syntax location", () => {
   expect(parseFilePosition("src/file.ts:12:7")).toEqual({

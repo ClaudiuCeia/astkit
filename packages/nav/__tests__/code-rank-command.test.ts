@@ -5,7 +5,7 @@ import path from "node:path";
 import {
   formatCodeRankOutput,
   runCodeRankCommand,
-} from "../code-rank/code-rank.ts";
+} from "../src/code-rank/code-rank.ts";
 
 test("runCodeRankCommand ranks scoped symbols", async () => {
   const workspace = await createRankFixtureWorkspace();

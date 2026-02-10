@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
-import { getReferences } from "../nav/references.ts";
+import { getReferences } from "../src/nav/references.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { searchProject } from "../sgrep.ts";
+import { searchProject } from "../src/sgrep.ts";
 
 test("searchProject finds structural matches across scoped files", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));

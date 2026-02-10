@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
 import { Chalk } from "chalk";
-import { formatDeclarationsOutput, getDeclarations } from "../nav/declarations.ts";
+import { formatDeclarationsOutput, getDeclarations } from "../src/nav/declarations.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;
@@ -121,7 +121,9 @@ test("formats declarations as compact text by default", () => {
 });
 
 test("includes jsdoc blocks when available", () => {
-  const result = getDeclarations(path.resolve(fixturesDir, "..", "..", "service.ts"));
+  const result = getDeclarations(
+    path.resolve(fixturesDir, "..", "..", "src", "service.ts"),
+  );
   const output = formatDeclarationsOutput(result);
 
   expect(output).toContain("Convert 1-indexed line:character to 0-indexed offset");

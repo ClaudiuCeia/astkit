@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { patchProject } from "../spatch.ts";
+import { patchProject } from "../src/spatch.ts";
 
 test("patchProject rewrites matching files in directory scope", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));

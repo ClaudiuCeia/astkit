@@ -3,8 +3,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
-import { formatPatchOutput, runPatchCommand } from "../command.ts";
-import type { SpatchResult } from "../types.ts";
+import { formatPatchOutput, runPatchCommand } from "../src/command.ts";
+import type { SpatchResult } from "../src/types.ts";
 
 test("runPatchCommand applies patch document string in scope", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));

@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
-import { createService, toPosition, fromPosition, relativePath } from "../service.ts";
+import { createService, toPosition, fromPosition, relativePath } from "../src/service.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;

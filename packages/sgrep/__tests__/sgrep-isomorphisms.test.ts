@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { expandPatternIsomorphisms } from "../isomorphisms/index.ts";
+import { expandPatternIsomorphisms } from "../src/isomorphisms/index.ts";
 
 test("expandPatternIsomorphisms returns original pattern first", () => {
   const variants = expandPatternIsomorphisms("const total = :[x] + :[y];");

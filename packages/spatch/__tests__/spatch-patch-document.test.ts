@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parsePatchDocument } from "../patch-document.ts";
+import { parsePatchDocument } from "../src/patch-document.ts";
 
 test("parsePatchDocument extracts pattern/replacement from +/- lines", () => {
   const patch = [

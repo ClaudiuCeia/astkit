@@ -3,8 +3,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
-import { formatSearchOutput, runSearchCommand } from "../command.ts";
-import type { SgrepResult } from "../types.ts";
+import { formatSearchOutput, runSearchCommand } from "../src/command.ts";
+import type { SgrepResult } from "../src/types.ts";
 
 test("runSearchCommand finds matches for inline pattern", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));

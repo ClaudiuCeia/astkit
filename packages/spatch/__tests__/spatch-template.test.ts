@@ -3,7 +3,7 @@ import {
   compileTemplate,
   findTemplateMatches,
   renderTemplate,
-} from "../template.ts";
+} from "../src/template.ts";
 
 test("regex-constrained holes only match valid captures", () => {
   const template = compileTemplate(
