@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   compileReplacementTemplate,
@@ -40,6 +41,16 @@ type RewritePerfStats = {
   writeNs: bigint;
 };
 
+type BeforeWriteFileHook = (input: {
+  filePath: string;
+  originalText: string;
+  rewrittenText: string;
+}) => Promise<void> | void;
+
+type InternalRewriteOptions = SpatchOptions & {
+  __beforeWriteFile?: BeforeWriteFileHook;
+};
+
 export async function rewriteProject(
   patch: ParsedPatchSpec,
   options: SpatchOptions,
@@ -51,6 +62,7 @@ export async function rewriteProject(
   const dryRun = options.dryRun ?? false;
   const encoding = options.encoding ?? "utf8";
   const concurrency = options.concurrency ?? 8;
+  const beforeWriteFile = (options as InternalRewriteOptions).__beforeWriteFile;
   const resolvedScope = path.resolve(cwd, scope);
   const compileStarted = verbose > 0 ? nowNs() : 0n;
   const patchVariants = new Map<
@@ -103,6 +115,7 @@ export async function rewriteProject(
         patchVariants,
         encoding,
         dryRun,
+        beforeWriteFile,
         stats: verbose > 0 ? stats : undefined,
       });
       if (verbose >= 2 && fileResult) {
@@ -193,6 +206,7 @@ type RewriteFileInput = {
   >;
   encoding: BufferEncoding;
   dryRun: boolean;
+  beforeWriteFile?: BeforeWriteFileHook;
   stats?: RewritePerfStats;
 };
 
@@ -251,8 +265,19 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
   const changed = rewrittenText !== originalText;
 
   if (changed && !input.dryRun) {
+    await input.beforeWriteFile?.({
+      filePath: input.filePath,
+      originalText,
+      rewrittenText,
+    });
+
     const writeStarted = input.stats ? nowNs() : 0n;
-    await writeFile(input.filePath, rewrittenText, input.encoding);
+    await writeFileIfUnchangedAtomically({
+      filePath: input.filePath,
+      originalText,
+      rewrittenText,
+      encoding: input.encoding,
+    });
     if (input.stats) {
       input.stats.writeNs += nowNs() - writeStarted;
     }
@@ -297,6 +322,57 @@ function applyOccurrences(
 
   parts.push(source.slice(cursor));
   return parts.join("");
+}
+
+type AtomicWriteInput = {
+  filePath: string;
+  originalText: string;
+  rewrittenText: string;
+  encoding: BufferEncoding;
+};
+
+async function writeFileIfUnchangedAtomically(input: AtomicWriteInput): Promise<void> {
+  let currentText: string;
+  try {
+    currentText = await readFile(input.filePath, input.encoding);
+  } catch {
+    throw buildStaleApplyError(input.filePath);
+  }
+  if (currentText !== input.originalText) {
+    throw buildStaleApplyError(input.filePath);
+  }
+
+  let fileStats: Awaited<ReturnType<typeof stat>>;
+  try {
+    fileStats = await stat(input.filePath);
+  } catch {
+    throw buildStaleApplyError(input.filePath);
+  }
+
+  const tempPath = buildAtomicTempPath(input.filePath);
+  await writeFile(tempPath, input.rewrittenText, {
+    encoding: input.encoding,
+    mode: fileStats.mode,
+  });
+
+  try {
+    await rename(tempPath, input.filePath);
+  } catch (error) {
+    await rm(tempPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+function buildAtomicTempPath(filePath: string): string {
+  const directory = path.dirname(filePath);
+  const fileName = path.basename(filePath);
+  return path.join(directory, `.${fileName}.spatch-${process.pid}-${randomUUID()}.tmp`);
+}
+
+function buildStaleApplyError(filePath: string): Error {
+  return new Error(
+    `File changed during non-interactive patch apply: ${filePath}. Re-run spatch to avoid overwriting concurrent edits.`,
+  );
 }
 
 function toDisplayFilePath(input: { cwd: string; scopePath: string; filePath: string }): string {

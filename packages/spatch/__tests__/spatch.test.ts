@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { patchProject } from "../src/spatch.ts";
@@ -52,6 +52,60 @@ test("patchProject dry run does not write files", async () => {
     expect(result.filesChanged).toBe(1);
     expect(result.totalReplacements).toBe(1);
     expect(await readFile(file, "utf8")).toBe(original);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchProject aborts non-interactive apply when file changes before write", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "sample.ts");
+    const original = "const value = 1;\n";
+    const externallyMutated = "/* external edit */\nconst value = 1;\n";
+    await writeFile(file, original, "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+    let mutated = false;
+
+    await expect(
+      patchProject(patch, {
+        scope: workspace,
+        // Internal test hook: mutate after read, before atomic write.
+        __beforeWriteFile: async ({ filePath }: { filePath: string }) => {
+          if (mutated) {
+            return;
+          }
+          mutated = true;
+          await writeFile(filePath, externallyMutated, "utf8");
+        },
+      } as any),
+    ).rejects.toThrow("File changed during non-interactive patch apply");
+
+    expect(await readFile(file, "utf8")).toBe(externallyMutated);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchProject atomic write leaves no temporary files behind", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "sample.ts");
+    await writeFile(file, "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+    const result = await patchProject(patch, {
+      scope: workspace,
+    });
+
+    expect(result.totalReplacements).toBe(1);
+    expect(await readFile(file, "utf8")).toBe("let value = 1;\n");
+
+    const entries = await readdir(workspace);
+    expect(entries.some((entry) => entry.includes(".spatch-"))).toBe(false);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
