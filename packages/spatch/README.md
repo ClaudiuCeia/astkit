@@ -29,6 +29,11 @@ Output modes:
 - `--json`: machine-readable structured result
 - `--check`: CI guardrail (non-zero exit when replacements are needed)
 
+Scope boundary:
+
+- if `cwd` is inside a git repository, `scope` must stay within the nearest repo root
+- if no git repository root is found, `scope` must stay within `cwd`
+
 Examples:
 
 ```bash

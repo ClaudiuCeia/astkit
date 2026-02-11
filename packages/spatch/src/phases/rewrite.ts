@@ -66,10 +66,14 @@ export async function rewriteProject(
   const beforeWriteFile = (options as InternalRewriteOptions).__beforeWriteFile;
   const resolvedScope = path.resolve(cwd, scope);
   const repoRoot = await findNearestGitRepoRoot(cwd);
-  if (repoRoot && !isPathWithinBase(repoRoot, resolvedScope)) {
-    throw new Error(
-      `Scope resolves outside repository root: scope=${resolvedScope} repoRoot=${repoRoot}.`,
-    );
+  const scopeBoundary = repoRoot ?? cwd;
+  if (!isPathWithinBase(scopeBoundary, resolvedScope)) {
+    if (repoRoot) {
+      throw new Error(
+        `Scope resolves outside repository root: scope=${resolvedScope} repoRoot=${repoRoot}.`,
+      );
+    }
+    throw new Error(`Scope resolves outside cwd: scope=${resolvedScope} cwd=${cwd}.`);
   }
   const compileStarted = verbose > 0 ? nowNs() : 0n;
   const patchVariants = new Map<

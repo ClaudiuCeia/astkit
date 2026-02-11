@@ -137,6 +137,30 @@ test("patchProject rejects scope outside nearest git repository root", async () 
   }
 });
 
+test("patchProject rejects scope outside cwd when git repository root is unavailable", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "spatch-outside-"));
+
+  try {
+    const cwd = path.join(workspace, "sandbox");
+    await mkdir(cwd, { recursive: true });
+    await writeFile(path.join(workspace, "inside.ts"), "const inside = 1;\n", "utf8");
+    await writeFile(path.join(outside, "outside.ts"), "const outside = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      patchProject(patch, {
+        cwd,
+        scope: outside,
+      }),
+    ).rejects.toThrow("Scope resolves outside cwd");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
 test("patchProject enforces repeated hole equality", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
 
@@ -190,6 +214,8 @@ test("patchProject reports scope-relative file paths when scope is outside cwd",
   try {
     const srcDir = path.join(workspace, "src");
     const otherCwd = path.join(workspace, "sandbox");
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await mkdir(otherCwd, { recursive: true });
     await mkdir(srcDir, { recursive: true });
     await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
 
