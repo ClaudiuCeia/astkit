@@ -16,6 +16,7 @@ import {
   nsToMs,
   toLineCharacter,
 } from "@claudiu-ceia/astkit-core";
+import { applyReplacementSpans } from "../replacement-spans.ts";
 import type { SpatchFileResult, SpatchOptions } from "../types.ts";
 import type { ParsedPatchSpec } from "./parse.ts";
 
@@ -264,7 +265,7 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
     0,
   );
   const applyStarted = input.stats ? nowNs() : 0n;
-  const rewrittenText = applyOccurrences(originalText, occurrences);
+  const rewrittenText = applyReplacementSpans(originalText, occurrences);
   if (input.stats) {
     input.stats.applyNs += nowNs() - applyStarted;
   }
@@ -307,27 +308,6 @@ function filterPublicCaptures(captures: Record<string, string>): Record<string, 
     ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
   );
   return Object.fromEntries(entries);
-}
-
-function applyOccurrences(
-  source: string,
-  occurrences: ReadonlyArray<{ start: number; end: number; replacement: string }>,
-): string {
-  if (occurrences.length === 0) {
-    return source;
-  }
-
-  const parts: string[] = [];
-  let cursor = 0;
-
-  for (const occurrence of occurrences) {
-    parts.push(source.slice(cursor, occurrence.start));
-    parts.push(occurrence.replacement);
-    cursor = occurrence.end;
-  }
-
-  parts.push(source.slice(cursor));
-  return parts.join("");
 }
 
 async function findNearestGitRepoRoot(startDirectory: string): Promise<string | null> {

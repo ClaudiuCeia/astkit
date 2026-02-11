@@ -2,6 +2,7 @@ import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { applyReplacementSpans } from "../replacement-spans.ts";
 import { patchProject } from "../spatch.ts";
 import type { SpatchFileResult, SpatchOccurrence, SpatchOptions, SpatchResult } from "../types.ts";
 import {
@@ -148,7 +149,7 @@ export async function runInteractivePatchCommand(
     });
     const originalText = await readFile(absolutePath, encoding);
     validateSelectedOccurrences(file.file, originalText, selected);
-    const rewrittenText = applySelectedOccurrences(originalText, selected);
+    const rewrittenText = applyReplacementSpans(originalText, selected);
     const changed = rewrittenText !== originalText;
     const replacementCount = selected.filter(
       (occurrence) => occurrence.matched !== occurrence.replacement,
@@ -220,28 +221,6 @@ type PreparedInteractiveFile = {
   replacementCount: number;
   selected: SpatchOccurrence[];
 };
-
-function applySelectedOccurrences(
-  source: string,
-  occurrences: readonly SpatchOccurrence[],
-): string {
-  if (occurrences.length === 0) {
-    return source;
-  }
-
-  const sorted = [...occurrences].sort((left, right) => left.start - right.start);
-  const parts: string[] = [];
-  let cursor = 0;
-
-  for (const occurrence of sorted) {
-    parts.push(source.slice(cursor, occurrence.start));
-    parts.push(occurrence.replacement);
-    cursor = occurrence.end;
-  }
-
-  parts.push(source.slice(cursor));
-  return parts.join("");
-}
 
 async function createTerminalInteractiveDecider(noColor: boolean): Promise<{
   decider: InteractiveDecider;
