@@ -2,7 +2,12 @@ import ts from "typescript";
 import path from "node:path";
 import { buildCommand } from "@stricli/core";
 import chalk, { Chalk, type ChalkInstance } from "chalk";
-import { createService, fromPosition, relativePath } from "../service.ts";
+import {
+  assertPathWithinWorkspaceBoundary,
+  createService,
+  fromPosition,
+  relativePath,
+} from "../service.ts";
 
 interface MemberInfo {
   name: string;
@@ -682,8 +687,10 @@ function collapseWhitespace(text: string): string {
 }
 
 export function getDeclarations(filePath: string): DeclarationsOutput {
-  const resolved = path.resolve(filePath);
-  const { program, projectRoot } = createService(process.cwd(), resolved);
+  const cwd = path.resolve(process.cwd());
+  const resolved = path.resolve(cwd, filePath);
+  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  const { program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);
   if (!sourceFile) {

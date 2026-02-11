@@ -1,7 +1,13 @@
 import path from "node:path";
 import { buildCommand } from "@stricli/core";
 import { parseFilePosition, type FilePosition } from "./location.ts";
-import { createService, toPosition, fromPosition, relativePath } from "../service.ts";
+import {
+  assertPathWithinWorkspaceBoundary,
+  createService,
+  toPosition,
+  fromPosition,
+  relativePath,
+} from "../service.ts";
 
 interface DefinitionLocation {
   file: string;
@@ -17,8 +23,10 @@ interface DefinitionOutput {
 }
 
 export function getDefinition(filePath: string, line: number, character: number): DefinitionOutput {
-  const resolved = path.resolve(filePath);
-  const { service, program, projectRoot } = createService(process.cwd(), resolved);
+  const cwd = path.resolve(process.cwd());
+  const resolved = path.resolve(cwd, filePath);
+  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  const { service, program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);
   if (!sourceFile) {

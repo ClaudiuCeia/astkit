@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
-import { getReferences } from "../src/nav/references.ts";
+import { dedupeReferenceLocations, getReferences } from "../src/nav/references.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;
@@ -57,4 +57,60 @@ test("returns empty references for position with no symbol", () => {
   const result = getReferences("simple.ts", 21, 30);
 
   expect(result.references.length).toBe(0);
+});
+
+test("getReferences returns unique reference spans", () => {
+  const result = getReferences("simple.ts", 1, 18);
+  const spans = result.references.map((ref) => `${ref.file}:${ref.line}:${ref.character}`);
+  const uniqueSpans = new Set(spans);
+  expect(uniqueSpans.size).toBe(spans.length);
+});
+
+test("dedupeReferenceLocations merges duplicate rows by span", () => {
+  const deduped = dedupeReferenceLocations([
+    {
+      file: "src/a.ts",
+      line: 1,
+      character: 1,
+      isDefinition: false,
+      isWriteAccess: false,
+    },
+    {
+      file: "src/a.ts",
+      line: 1,
+      character: 1,
+      isDefinition: true,
+      isWriteAccess: false,
+    },
+    {
+      file: "src/a.ts",
+      line: 1,
+      character: 1,
+      isDefinition: false,
+      isWriteAccess: true,
+    },
+    {
+      file: "src/b.ts",
+      line: 2,
+      character: 3,
+      isDefinition: false,
+      isWriteAccess: false,
+    },
+  ]);
+
+  expect(deduped.length).toBe(2);
+  expect(deduped[0]).toEqual({
+    file: "src/a.ts",
+    line: 1,
+    character: 1,
+    isDefinition: true,
+    isWriteAccess: true,
+  });
+  expect(deduped[1]).toEqual({
+    file: "src/b.ts",
+    line: 2,
+    character: 3,
+    isDefinition: false,
+    isWriteAccess: false,
+  });
 });

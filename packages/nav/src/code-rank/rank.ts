@@ -5,7 +5,12 @@ import {
   DEFAULT_SOURCE_EXTENSIONS,
   collectPatchableFiles,
 } from "@claudiu-ceia/astkit-core";
-import { createService, fromPosition, relativePath } from "../service.ts";
+import {
+  assertPathWithinWorkspaceBoundary,
+  createService,
+  fromPosition,
+  relativePath,
+} from "../service.ts";
 
 export type CodeRankOptions = {
   cwd?: string;
@@ -42,6 +47,7 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const scope = options.scope ?? ".";
   const resolvedScope = path.resolve(cwd, scope);
+  assertPathWithinWorkspaceBoundary(cwd, resolvedScope, "Scope");
   const files = await collectPatchableFiles({
     cwd,
     scope,

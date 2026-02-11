@@ -1,3 +1,4 @@
+import { realpathSync, statSync } from "node:fs";
 import ts from "typescript";
 import path from "node:path";
 
@@ -11,6 +12,7 @@ export function createService(
   projectDir: string,
   targetFile?: string | readonly string[],
 ): Service {
+  const cwd = path.resolve(projectDir);
   const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists);
 
   let compilerOptions: ts.CompilerOptions;
@@ -31,13 +33,14 @@ export function createService(
   } else {
     compilerOptions = ts.getDefaultCompilerOptions();
     fileNames = [];
-    projectRoot = projectDir;
+    projectRoot = cwd;
   }
 
   // Ensure requested target files are in the language-service file set.
   const targetFiles = normalizeTargetFiles(targetFile);
   for (const requestedFile of targetFiles) {
-    const resolved = path.resolve(requestedFile);
+    const resolved = path.resolve(cwd, requestedFile);
+    assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
     if (!fileNames.includes(resolved)) {
       fileNames.push(resolved);
     }
@@ -96,4 +99,78 @@ export function fromPosition(
 /** Get relative path from project root */
 export function relativePath(projectRoot: string, filePath: string): string {
   return path.relative(projectRoot, filePath);
+}
+
+export function assertPathWithinWorkspaceBoundary(
+  cwd: string,
+  targetPath: string,
+  label: string,
+): void {
+  const resolvedCwd = path.resolve(cwd);
+  const resolvedTarget = path.resolve(targetPath);
+  const repoRoot = findNearestGitRepoRoot(resolvedCwd);
+  const boundary = repoRoot ?? resolvedCwd;
+  const canonicalBoundary = resolveCanonicalPath(boundary);
+  const canonicalTarget = resolveCanonicalPath(resolvedTarget);
+  if (isPathWithinBase(canonicalBoundary, canonicalTarget)) {
+    return;
+  }
+
+  if (repoRoot) {
+    throw new Error(
+      `${label} resolves outside repository root: path=${resolvedTarget} repoRoot=${repoRoot}.`,
+    );
+  }
+  throw new Error(`${label} resolves outside cwd: path=${resolvedTarget} cwd=${resolvedCwd}.`);
+}
+
+function findNearestGitRepoRoot(startDirectory: string): string | null {
+  let current = path.resolve(startDirectory);
+
+  while (true) {
+    try {
+      statSync(path.join(current, ".git"));
+      return current;
+    } catch {
+      // Move upward to find nearest git root.
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+function isRelativeWithinBase(relativePath: string): boolean {
+  if (relativePath.length === 0) {
+    return true;
+  }
+
+  if (path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  return relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`);
+}
+
+function isPathWithinBase(basePath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(basePath, candidatePath);
+  return isRelativeWithinBase(relativePath);
+}
+
+function resolveCanonicalPath(filePath: string): string {
+  try {
+    return realpathSync(filePath);
+  } catch (error) {
+    if (isErrorWithCode(error) && error.code === "ENOENT") {
+      return path.resolve(filePath);
+    }
+    throw error;
+  }
+}
+
+function isErrorWithCode(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
 }

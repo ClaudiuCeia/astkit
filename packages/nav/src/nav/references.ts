@@ -1,7 +1,13 @@
 import path from "node:path";
 import { buildCommand } from "@stricli/core";
 import { parseFilePosition, type FilePosition } from "./location.ts";
-import { createService, toPosition, fromPosition, relativePath } from "../service.ts";
+import {
+  assertPathWithinWorkspaceBoundary,
+  createService,
+  toPosition,
+  fromPosition,
+  relativePath,
+} from "../service.ts";
 
 interface ReferenceLocation {
   file: string;
@@ -18,8 +24,10 @@ interface ReferencesOutput {
 }
 
 export function getReferences(filePath: string, line: number, character: number): ReferencesOutput {
-  const resolved = path.resolve(filePath);
-  const { service, program, projectRoot } = createService(process.cwd(), resolved);
+  const cwd = path.resolve(process.cwd());
+  const resolved = path.resolve(cwd, filePath);
+  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  const { service, program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);
   if (!sourceFile) {
@@ -75,7 +83,27 @@ export function getReferences(filePath: string, line: number, character: number)
     }
   }
 
-  return { symbol, definition, references };
+  return { symbol, definition, references: dedupeReferenceLocations(references) };
+}
+
+export function dedupeReferenceLocations(
+  references: readonly ReferenceLocation[],
+): ReferenceLocation[] {
+  const bySpan = new Map<string, ReferenceLocation>();
+
+  for (const reference of references) {
+    const key = `${reference.file}:${reference.line}:${reference.character}`;
+    const existing = bySpan.get(key);
+    if (!existing) {
+      bySpan.set(key, { ...reference });
+      continue;
+    }
+
+    existing.isDefinition ||= reference.isDefinition;
+    existing.isWriteAccess ||= reference.isWriteAccess;
+  }
+
+  return [...bySpan.values()];
 }
 
 export const referencesCommand = buildCommand<{}, [FilePosition]>({
