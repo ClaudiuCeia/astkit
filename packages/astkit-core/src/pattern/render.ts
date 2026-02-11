@@ -2,17 +2,12 @@ import { tokenizeTemplate } from "./syntax.ts";
 import type { CompiledReplacementTemplate } from "./types.ts";
 import { ELLIPSIS_CAPTURE_PREFIX } from "./types.ts";
 
-export function renderTemplate(
-  source: string,
-  captures: Record<string, string>,
-): string {
+export function renderTemplate(source: string, captures: Record<string, string>): string {
   const template = compileReplacementTemplate(source);
   return renderCompiledTemplate(template, captures);
 }
 
-export function compileReplacementTemplate(
-  source: string,
-): CompiledReplacementTemplate {
+export function compileReplacementTemplate(source: string): CompiledReplacementTemplate {
   if (source.length === 0) {
     return {
       source,

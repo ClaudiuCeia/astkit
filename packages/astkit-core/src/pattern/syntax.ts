@@ -80,37 +80,27 @@ const holeTokenParser = map(
   },
 );
 
-const ellipsisTokenParser = map(str("..."), () => ({
-  kind: "ellipsis",
-} satisfies RawEllipsisToken));
+const ellipsisTokenParser = map(
+  str("..."),
+  () =>
+    ({
+      kind: "ellipsis",
+    }) satisfies RawEllipsisToken,
+);
 
 const escapedTextTokenParser = map(
   seq(str("\\"), any(str("..."), str(":["), anyChar())),
-  ([, value]) => ({ kind: "text", value } satisfies TextToken),
+  ([, value]) => ({ kind: "text", value }) satisfies TextToken,
 );
 
 const textTokenParser = map(
-  mapJoin(
-    many1(
-      minus(
-        anyChar(),
-        any(str("..."), str(":["), str("\\")),
-      ),
-    ),
-  ),
-  (value) => ({ kind: "text", value } satisfies TextToken),
+  mapJoin(many1(minus(anyChar(), any(str("..."), str(":["), str("\\"))))),
+  (value) => ({ kind: "text", value }) satisfies TextToken,
 );
 
 const templateTokensParser = map(
   seq(
-    many(
-      any(
-        holeTokenParser,
-        ellipsisTokenParser,
-        escapedTextTokenParser,
-        textTokenParser,
-      ),
-    ),
+    many(any(holeTokenParser, ellipsisTokenParser, escapedTextTokenParser, textTokenParser)),
     eof(),
   ),
   ([tokens]) => tokens as RawTemplateToken[],
@@ -147,15 +137,8 @@ export function compileTemplate(source: string): CompiledTemplate {
   for (let index = 0; index < tokens.length - 1; index += 1) {
     const current = tokens[index];
     const next = tokens[index + 1];
-    if (
-      current &&
-      next &&
-      current.kind !== "text" &&
-      next.kind !== "text"
-    ) {
-      throw new Error(
-        "Adjacent holes are ambiguous. Add a literal delimiter between them.",
-      );
+    if (current && next && current.kind !== "text" && next.kind !== "text") {
+      throw new Error("Adjacent holes are ambiguous. Add a literal delimiter between them.");
     }
   }
 
@@ -164,18 +147,13 @@ export function compileTemplate(source: string): CompiledTemplate {
     0,
   );
   if (literalLength === 0) {
-    throw new Error(
-      "Template must include at least one literal character to avoid empty matches.",
-    );
+    throw new Error("Template must include at least one literal character to avoid empty matches.");
   }
 
   return { source, tokens };
 }
 
-function resolveRawToken(
-  token: RawTemplateToken,
-  nextEllipsisIndex: () => number,
-): TemplateToken {
+function resolveRawToken(token: RawTemplateToken, nextEllipsisIndex: () => number): TemplateToken {
   if (token.kind === "text") {
     return token;
   }
@@ -207,9 +185,7 @@ function resolveRawToken(
     } satisfies HoleToken;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Invalid regex constraint for hole "${token.name}": ${message}`,
-    );
+    throw new Error(`Invalid regex constraint for hole "${token.name}": ${message}`);
   }
 }
 

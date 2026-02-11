@@ -38,14 +38,10 @@ export async function collectPatchableFiles(
   const extensionSet = new Set(
     (options.extensions ?? DEFAULT_SOURCE_EXTENSIONS).map(normalizeExtension),
   );
-  const excludedDirectorySet = new Set(
-    options.excludedDirectories ?? DEFAULT_EXCLUDED_DIRECTORIES,
-  );
+  const excludedDirectorySet = new Set(options.excludedDirectories ?? DEFAULT_EXCLUDED_DIRECTORIES);
 
   if (scopeStats.isFile()) {
-    return extensionSet.has(path.extname(scopePath).toLowerCase())
-      ? [scopePath]
-      : [];
+    return extensionSet.has(path.extname(scopePath).toLowerCase()) ? [scopePath] : [];
   }
 
   if (!scopeStats.isDirectory()) {
@@ -70,9 +66,7 @@ async function walkDirectory(
   }
 
   // Keep deterministic output without the overhead of locale-aware collation.
-  entries.sort((left, right) =>
-    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-  );
+  entries.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 
   for (const entry of entries) {
     const absolute = path.join(directory, entry.name);

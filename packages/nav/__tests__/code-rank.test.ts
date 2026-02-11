@@ -57,7 +57,9 @@ test("rankCode supports single-file scope while preserving project references", 
 
     expect(result.filesScanned).toBe(1);
     expect(result.symbolsScanned).toBe(3);
-    expect(result.symbols.find((symbol) => symbol.symbol === "hot")?.externalReferenceCount).toBeGreaterThan(0);
+    expect(
+      result.symbols.find((symbol) => symbol.symbol === "hot")?.externalReferenceCount,
+    ).toBeGreaterThan(0);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -122,14 +124,7 @@ async function createRankFixtureWorkspace(): Promise<string> {
   );
   await writeFile(
     path.join(workspace, "b.ts"),
-    [
-      'import { hot, warm } from "./a.ts";',
-      "",
-      "hot();",
-      "hot();",
-      "warm();",
-      "",
-    ].join("\n"),
+    ['import { hot, warm } from "./a.ts";', "", "hot();", "hot();", "warm();", ""].join("\n"),
     "utf8",
   );
   await writeFile(

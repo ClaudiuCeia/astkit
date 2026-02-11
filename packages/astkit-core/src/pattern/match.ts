@@ -13,10 +13,7 @@ type MatchResult = {
   captures: Map<string, string>;
 };
 
-export function findTemplateMatches(
-  text: string,
-  template: CompiledTemplate,
-): TemplateMatch[] {
+export function findTemplateMatches(text: string, template: CompiledTemplate): TemplateMatch[] {
   const matches: TemplateMatch[] = [];
   const firstToken = template.tokens[0];
   const anchor = firstToken?.kind === "text" ? firstToken.value : null;
@@ -63,13 +60,7 @@ function matchTokens(
       return null;
     }
 
-    return matchTokens(
-      text,
-      tokens,
-      tokenIndex + 1,
-      cursor + token.value.length,
-      captures,
-    );
+    return matchTokens(text, tokens, tokenIndex + 1, cursor + token.value.length, captures);
   }
 
   if (token.kind === "ellipsis") {
@@ -81,13 +72,7 @@ function matchTokens(
       }
 
       const nextCaptures = captureEllipsis(captures, token.index, chunk);
-      return matchTokens(
-        text,
-        tokens,
-        tokenIndex + 1,
-        text.length,
-        nextCaptures,
-      );
+      return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
     }
 
     const nextIndexes = findLiteralIndexes(text, nextLiteral.value, cursor);
@@ -99,13 +84,7 @@ function matchTokens(
       const chunk = text.slice(cursor, nextIndex);
       if (isBalancedChunk(chunk)) {
         const nextCaptures = captureEllipsis(captures, token.index, chunk);
-        const nested = matchTokens(
-          text,
-          tokens,
-          tokenIndex + 1,
-          nextIndex,
-          nextCaptures,
-        );
+        const nested = matchTokens(text, tokens, tokenIndex + 1, nextIndex, nextCaptures);
         if (nested) {
           return nested;
         }
@@ -127,13 +106,7 @@ function matchTokens(
       return null;
     }
 
-    return matchTokens(
-      text,
-      tokens,
-      tokenIndex + 1,
-      text.length,
-      nextCaptures,
-    );
+    return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
   }
 
   let probe = cursor;
@@ -147,13 +120,7 @@ function matchTokens(
     if (isBalancedChunk(chunk)) {
       const nextCaptures = captureHole(captures, token, chunk);
       if (nextCaptures) {
-        const nested = matchTokens(
-          text,
-          tokens,
-          tokenIndex + 1,
-          nextIndex,
-          nextCaptures,
-        );
+        const nested = matchTokens(text, tokens, tokenIndex + 1, nextIndex, nextCaptures);
         if (nested) {
           return nested;
         }
@@ -166,10 +133,7 @@ function matchTokens(
   return null;
 }
 
-function findNextLiteral(
-  tokens: readonly TemplateToken[],
-  fromIndex: number,
-): TextToken | null {
+function findNextLiteral(tokens: readonly TemplateToken[], fromIndex: number): TextToken | null {
   for (let index = fromIndex; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (token && token.kind === "text") {
@@ -216,11 +180,7 @@ function captureEllipsis(
   return next;
 }
 
-function findLiteralIndexes(
-  text: string,
-  literal: string,
-  fromIndex: number,
-): number[] {
+function findLiteralIndexes(text: string, literal: string, fromIndex: number): number[] {
   const indexes: number[] = [];
   let probe = fromIndex;
 

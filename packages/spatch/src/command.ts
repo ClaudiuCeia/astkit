@@ -10,10 +10,7 @@ import {
   validatePatchCommandFlags,
   type PatchCommandFlags,
 } from "./command/flags.ts";
-import {
-  runInteractivePatchCommand,
-  type InteractiveDecider,
-} from "./command/interactive.ts";
+import { runInteractivePatchCommand, type InteractiveDecider } from "./command/interactive.ts";
 import { formatPatchOutput } from "./command/output.ts";
 import { patchProject } from "./spatch.ts";
 import type { SpatchOptions, SpatchResult } from "./types.ts";
@@ -46,16 +43,14 @@ export async function runPatchCommand(
 
   const patchScope = scope ?? ".";
   const patchCwd = flags.cwd;
-  const logger = options.logger ??
+  const logger =
+    options.logger ??
     (flags.verbose ? (line: string) => processStderr.write(`${line}\n`) : undefined);
-  const resolvedPatchInput = await resolvePatchInput(
-    patchInput,
-    {
-      cwd: patchCwd,
-      encoding: "utf8",
-      readStdin: options.readStdin,
-    },
-  );
+  const resolvedPatchInput = await resolvePatchInput(patchInput, {
+    cwd: patchCwd,
+    encoding: "utf8",
+    readStdin: options.readStdin,
+  });
   const patchOptions: SpatchOptions = {
     concurrency: flags.concurrency,
     cwd: patchCwd,
@@ -66,14 +61,11 @@ export async function runPatchCommand(
   };
 
   if (flags.interactive ?? false) {
-    return runInteractivePatchCommand(
-      resolvedPatchInput,
-      {
-        ...patchOptions,
-        noColor: flags["no-color"] ?? false,
-        interactiveDecider: options.interactiveDecider,
-      },
-    );
+    return runInteractivePatchCommand(resolvedPatchInput, {
+      ...patchOptions,
+      noColor: flags["no-color"] ?? false,
+      interactiveDecider: options.interactiveDecider,
+    });
   }
 
   return patchProject(resolvedPatchInput, {

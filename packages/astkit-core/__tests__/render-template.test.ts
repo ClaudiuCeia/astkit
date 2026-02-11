@@ -11,9 +11,7 @@ test("renderCompiledTemplate matches renderTemplate output", () => {
 
   const compiled = compileReplacementTemplate(source);
 
-  expect(renderCompiledTemplate(compiled, captures)).toBe(
-    renderTemplate(source, captures),
-  );
+  expect(renderCompiledTemplate(compiled, captures)).toBe(renderTemplate(source, captures));
 });
 
 test("compileReplacementTemplate supports empty replacement", () => {
@@ -25,8 +23,7 @@ test("compileReplacementTemplate supports empty replacement", () => {
 test("renderCompiledTemplate validates unknown holes", () => {
   const compiled = compileReplacementTemplate("let :[name] = :[missing];");
 
-  expect(() =>
-    renderCompiledTemplate(compiled, { name: "x" }),
-  ).toThrow('Replacement uses unknown hole "missing".');
+  expect(() => renderCompiledTemplate(compiled, { name: "x" })).toThrow(
+    'Replacement uses unknown hole "missing".',
+  );
 });
-

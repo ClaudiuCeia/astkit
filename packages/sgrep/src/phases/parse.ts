@@ -18,11 +18,7 @@ export async function parseSearchInvocation(
   patternInput: string,
   options: SgrepOptions = {},
 ): Promise<ParsedSearchInvocation> {
-  const invocation = await parseTextInvocation(
-    patternInput,
-    options,
-    parseSearchSpec,
-  );
+  const invocation = await parseTextInvocation(patternInput, options, parseSearchSpec);
 
   return {
     search: invocation.spec,

@@ -3,6 +3,14 @@
   "version": "0.3.0",
   "description": "Structural patcher for TS/JS using a patch-document template format.",
   "license": "MIT",
+  "bin": {
+    "spatch": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,17 +23,6 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "spatch": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "src",
-    "README.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -34,5 +31,8 @@
     "@claudiu-ceia/combine": "^0.2.6",
     "@stricli/core": "^1.2.5",
     "chalk": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

@@ -47,9 +47,7 @@ export async function mapLimit<T, R>(
     }
   }
 
-  const workers = new Array(Math.min(concurrency, items.length))
-    .fill(null)
-    .map(() => worker());
+  const workers = new Array(Math.min(concurrency, items.length)).fill(null).map(() => worker());
   await Promise.all(workers);
 
   if (firstError) {
@@ -58,4 +56,3 @@ export async function mapLimit<T, R>(
 
   return out;
 }
-

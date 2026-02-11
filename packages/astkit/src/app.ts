@@ -24,8 +24,7 @@ const text = {
     `Unable to load command function, ${formatCommandException(exc)}`,
   exceptionWhileLoadingCommandContext: (exc: unknown) =>
     `Unable to load command context, ${formatCommandException(exc)}`,
-  exceptionWhileRunningCommand: (exc: unknown) =>
-    `Command failed, ${formatCommandException(exc)}`,
+  exceptionWhileRunningCommand: (exc: unknown) => `Command failed, ${formatCommandException(exc)}`,
 };
 
 const navRouteMap = buildRouteMap({

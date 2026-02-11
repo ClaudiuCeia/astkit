@@ -2,10 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  formatCodeRankOutput,
-  runCodeRankCommand,
-} from "../src/code-rank/code-rank.ts";
+import { formatCodeRankOutput, runCodeRankCommand } from "../src/code-rank/code-rank.ts";
 
 test("runCodeRankCommand ranks scoped symbols", async () => {
   const workspace = await createRankFixtureWorkspace();
@@ -100,9 +97,7 @@ async function createRankFixtureWorkspace(): Promise<string> {
   );
   await writeFile(
     path.join(workspace, "b.ts"),
-    ['import { hot, warm } from "./a.ts";', "", "hot();", "warm();", ""].join(
-      "\n",
-    ),
+    ['import { hot, warm } from "./a.ts";', "", "hot();", "warm();", ""].join("\n"),
     "utf8",
   );
   await writeFile(

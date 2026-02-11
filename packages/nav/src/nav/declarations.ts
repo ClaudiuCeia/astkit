@@ -62,8 +62,7 @@ export function formatDeclarationsOutput(
     const declLine = formatDeclarationLine(decl, chalkInstance);
     lines.push({ line: decl.line, content: declLine });
 
-    const isBlock =
-      decl.kind === "class" || decl.kind === "interface" || decl.kind === "enum";
+    const isBlock = decl.kind === "class" || decl.kind === "interface" || decl.kind === "enum";
     if (isBlock) {
       if (decl.members && decl.members.length > 0) {
         const members = [...decl.members].sort((a, b) => a.line - b.line);
@@ -134,7 +133,10 @@ export function formatDeclarationsOutput(
   }
 
   // Trim trailing bullet lines.
-  while (outLines.length > 0 && outLines[outLines.length - 1] === formatGutterBullet(width, chalkInstance)) {
+  while (
+    outLines.length > 0 &&
+    outLines[outLines.length - 1] === formatGutterBullet(width, chalkInstance)
+  ) {
     outLines.pop();
   }
 
@@ -237,9 +239,9 @@ function formatMemberLine(
   // Class/enum members: prefix `public` for consistency (unless already present).
   const trimmed = signature.trimStart();
   const hasVisibility =
-    trimmed.startsWith("public ")
-    || trimmed.startsWith("protected ")
-    || trimmed.startsWith("private ");
+    trimmed.startsWith("public ") ||
+    trimmed.startsWith("protected ") ||
+    trimmed.startsWith("private ");
   const visibleSignature = hasVisibility ? signature : `${kw("public")} ${signature}`;
   return highlightMemberSignature(visibleSignature, kw, nm, ty);
 }
@@ -285,11 +287,7 @@ function highlightMemberSignature(
   return out;
 }
 
-function renderDocBlock(
-  doc: string,
-  indent: string,
-  chalkInstance: ChalkInstance,
-): string[] {
+function renderDocBlock(doc: string, indent: string, chalkInstance: ChalkInstance): string[] {
   const useColor = chalkInstance.level > 0;
   const docColor = useColor ? chalkInstance.gray : (value: string) => value;
   const normalized = doc.trim();
@@ -350,9 +348,8 @@ function highlightExportedDeclaration(
   );
 
   // Remaining keywords (heritage etc).
-  out = out.replace(
-    /\b(extends|implements|namespace|module|declare|default|async)\b/g,
-    (m) => formatKeyword(m),
+  out = out.replace(/\b(extends|implements|namespace|module|declare|default|async)\b/g, (m) =>
+    formatKeyword(m),
   );
 
   // Types: for callables, only the return type; for consts, the annotated type.
@@ -385,15 +382,15 @@ function buildChalk(options: FormatDeclarationsOutputOptions): ChalkInstance {
   return new Chalk({ level });
 }
 
-function formatDoc(
-  symbol: ts.Symbol,
-  checker: ts.TypeChecker,
-): string {
+function formatDoc(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   const parts = symbol.getDocumentationComment(checker);
   const text = ts.displayPartsToString(parts).trim();
 
   const tags = symbol.getJsDocTags().map((tag) => {
-    const body = (tag.text ?? []).map((p) => p.text).join("").trim();
+    const body = (tag.text ?? [])
+      .map((p) => p.text)
+      .join("")
+      .trim();
     return body.length > 0 ? `@${tag.name} ${body}` : `@${tag.name}`;
   });
 
@@ -428,12 +425,8 @@ function extractLeadingFileDoc(sourceFile: ts.SourceFile): string | undefined {
       continue;
     }
     // Strip /** */ and leading `*` decorations.
-    const body = comment
-      .replace(/^\/\*\*/, "")
-      .replace(/\*\/$/, "");
-    const rawLines = body
-      .split("\n")
-      .map((line) => line.replace(/^\s*\*\s?/, "").trimEnd());
+    const body = comment.replace(/^\/\*\*/, "").replace(/\*\/$/, "");
+    const rawLines = body.split("\n").map((line) => line.replace(/^\s*\*\s?/, "").trimEnd());
 
     // Trim leading/trailing empty lines, keep internal empty lines as paragraph breaks.
     while (rawLines.length > 0 && rawLines[0]!.trim().length === 0) {
@@ -461,8 +454,7 @@ function isNonPublicClassMember(member: ts.ClassElement): boolean {
   }
 
   const flags = ts.getCombinedModifierFlags(member);
-  return Boolean(flags & ts.ModifierFlags.Private)
-    || Boolean(flags & ts.ModifierFlags.Protected);
+  return Boolean(flags & ts.ModifierFlags.Private) || Boolean(flags & ts.ModifierFlags.Protected);
 }
 
 function buildClassMemberInfo(
@@ -527,7 +519,11 @@ function buildClassMemberInfo(
     const optional = member.questionToken ? "?" : "";
     const typeText = member.type
       ? member.type.getText(sourceFile)
-      : checker.typeToString(checker.getTypeAtLocation(member), member, ts.TypeFormatFlags.NoTruncation);
+      : checker.typeToString(
+          checker.getTypeAtLocation(member),
+          member,
+          ts.TypeFormatFlags.NoTruncation,
+        );
     return {
       name,
       signature: `${modifierPrefix}${name}${optional}: ${typeText}`,
@@ -540,7 +536,11 @@ function buildClassMemberInfo(
     const name = member.name.getText(sourceFile);
     const returnType = member.type
       ? member.type.getText(sourceFile)
-      : checker.typeToString(checker.getTypeAtLocation(member), member, ts.TypeFormatFlags.NoTruncation);
+      : checker.typeToString(
+          checker.getTypeAtLocation(member),
+          member,
+          ts.TypeFormatFlags.NoTruncation,
+        );
     return {
       name,
       signature: `${modifierPrefix}get ${name}(): ${returnType}`,
@@ -561,7 +561,10 @@ function buildClassMemberInfo(
   }
 
   // Fallback for rare class elements (index signatures, etc.)
-  const fallbackText = member.getText(sourceFile).replace(/\s*\{[\s\S]*$/, "").trim();
+  const fallbackText = member
+    .getText(sourceFile)
+    .replace(/\s*\{[\s\S]*$/, "")
+    .trim();
   return {
     name: "<member>",
     signature: `${modifierPrefix}${fallbackText}`,
@@ -589,7 +592,11 @@ function buildInterfaceMemberInfo(
     const optional = member.questionToken ? "?" : "";
     const typeText = member.type
       ? member.type.getText(sourceFile)
-      : checker.typeToString(checker.getTypeAtLocation(member), member, ts.TypeFormatFlags.NoTruncation);
+      : checker.typeToString(
+          checker.getTypeAtLocation(member),
+          member,
+          ts.TypeFormatFlags.NoTruncation,
+        );
     return { name, signature: `${name}${optional}: ${typeText}`, line: pos.line, doc };
   }
 
@@ -599,9 +606,18 @@ function buildInterfaceMemberInfo(
     const params = member.parameters.map((p) => p.getText(sourceFile)).join(", ");
     const returnType = member.type
       ? member.type.getText(sourceFile)
-      : checker.typeToString(checker.getTypeAtLocation(member), member, ts.TypeFormatFlags.NoTruncation);
+      : checker.typeToString(
+          checker.getTypeAtLocation(member),
+          member,
+          ts.TypeFormatFlags.NoTruncation,
+        );
     const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
-    return { name, signature: `${name}${tparamText}(${params}): ${returnType}`, line: pos.line, doc };
+    return {
+      name,
+      signature: `${name}${tparamText}(${params}): ${returnType}`,
+      line: pos.line,
+      doc,
+    };
   }
 
   // Fallback for call signatures, index signatures, etc.
@@ -704,22 +720,13 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
         return typeChecker.getTypeFromTypeNode(declaration.type);
       }
 
-      if (
-        kind === "interface"
-        || kind === "class"
-        || kind === "enum"
-        || kind === "type"
-      ) {
+      if (kind === "interface" || kind === "class" || kind === "enum" || kind === "type") {
         return typeChecker.getDeclaredTypeOfSymbol(exp);
       }
 
       return typeChecker.getTypeOfSymbol(exp);
     })();
-    const signature = typeChecker.typeToString(
-      type,
-      declaration,
-      ts.TypeFormatFlags.NoTruncation,
-    );
+    const signature = typeChecker.typeToString(type, declaration, ts.TypeFormatFlags.NoTruncation);
     const pos = fromPosition(sourceFile, declaration.getStart(sourceFile));
     const endPos = fromPosition(sourceFile, declaration.end);
 

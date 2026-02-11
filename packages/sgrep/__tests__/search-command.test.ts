@@ -83,11 +83,9 @@ test("runSearchCommand matches object literal key-order isomorphism", async () =
       "utf8",
     );
 
-    const result = await runSearchCommand(
-      "const map = { foo: :[x], bar: :[y] };",
-      ".",
-      { cwd: workspace },
-    );
+    const result = await runSearchCommand("const map = { foo: :[x], bar: :[y] };", ".", {
+      cwd: workspace,
+    });
 
     expect(result.totalMatches).toBe(1);
     expect(result.files[0]?.matches[0]?.captures).toEqual({
@@ -140,9 +138,7 @@ test("formatSearchOutput renders compact file and line output", () => {
   };
 
   expect(formatSearchOutput(result)).toBe(
-    ["//src/sample.ts", "123:     let foo = 42;", "200: let bar = compute( ..."].join(
-      "\n",
-    ),
+    ["//src/sample.ts", "123:     let foo = 42;", "200: let bar = compute( ..."].join("\n"),
   );
 });
 
@@ -222,9 +218,7 @@ test("formatSearchOutput colors distinct variables with different colors", () =>
   const barCode = output.match(/(\u001b\[[0-9;]*m)bar\u001b\[[0-9;]*m/)?.[1];
   const fortyTwoCode = output.match(/(\u001b\[[0-9;]*m)42\u001b\[[0-9;]*m/)?.[1];
   const sevenCode = output.match(/(\u001b\[[0-9;]*m)7\u001b\[[0-9;]*m/)?.[1];
-  const computeCode = output.match(
-    /(\u001b\[[0-9;]*m)compute\(\u001b\[[0-9;]*m/,
-  )?.[1];
+  const computeCode = output.match(/(\u001b\[[0-9;]*m)compute\(\u001b\[[0-9;]*m/)?.[1];
 
   expect(fooCode).toBeDefined();
   expect(barCode).toBe(fooCode);

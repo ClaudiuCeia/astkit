@@ -12,6 +12,7 @@ It operates on AST structure, TypeScript type services, and reference graphs.
 ## Non-Goals
 
 `astkit` does not:
+
 - infer program intent or meaning
 - perform whole-program flow analysis
 - prove correctness or enforce architecture
@@ -90,6 +91,7 @@ astkit nav references <location>
 ```
 
 `<location>` format:
+
 - `path/to/file.ts:120:17`
 
 Line and character are 1-indexed.
@@ -238,6 +240,7 @@ astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 ```
 
 Notes:
+
 - In bash/zsh, `$'...'` enables `\n` escapes for multi-line patch documents. Alternatively, pass a patch file path as `<patch-input>`.
 
 Mock execution:
@@ -334,6 +337,7 @@ Default compact `search` output:
 ```
 
 JSON `search` output (`--json`) includes:
+
 - files scanned/matched
 - total matches
 - byte spans
@@ -345,6 +349,7 @@ JSON `search` output (`--json`) includes:
 ## Programmatic API
 
 Root exports:
+
 - `patchProject` from `src/spatch`
 - `searchProject` from `src/sgrep`
 - `rankCode` from `src/code-rank`
@@ -354,6 +359,7 @@ import { patchProject, rankCode, searchProject } from "@claudiu-ceia/astkit";
 ```
 
 See detailed internals:
+
 - `src/spatch/README.md`
 - `src/sgrep/README.md`
 

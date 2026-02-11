@@ -1,8 +1,5 @@
 import { buildSgrepResult } from "./phases/output.ts";
-import {
-  parseSearchInvocation,
-  type ParsedSearchSpec,
-} from "./phases/parse.ts";
+import { parseSearchInvocation, type ParsedSearchSpec } from "./phases/parse.ts";
 import { searchProjectFiles } from "./phases/search.ts";
 import type { SgrepOptions, SgrepResult } from "./types.ts";
 

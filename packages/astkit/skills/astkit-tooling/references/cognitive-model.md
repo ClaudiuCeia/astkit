@@ -5,6 +5,7 @@ Use this vocabulary when building repository summaries and implementation plans.
 ## System Boundaries and Entry Points
 
 Capture:
+
 - subsystem boundaries
 - external interfaces
 - entry points (HTTP handlers, queue consumers, CLI commands)
@@ -15,6 +16,7 @@ Prioritize purpose and responsibility over local implementation detail.
 
 Track rules that appear to remain stable across edits.
 Examples:
+
 - idempotency requirements
 - authentication/authorization preconditions
 - non-blocking or latency constraints
@@ -31,6 +33,7 @@ This gives a practical flow model, not whole-program path analysis.
 ## Change Hotspots and Dependency Hubs
 
 Use recognized maintenance signals:
+
 - change hotspots: areas with frequent edits and defect risk
 - dependency hubs: symbols/modules with high fan-in or centrality
 - blast radius: expected impact surface of a change
@@ -41,12 +44,14 @@ Use `code-rank` as an initial signal, then validate with local code inspection.
 
 Treat active reasoning capacity as limited.
 Keep in the working set:
+
 - boundaries
 - invariants
 - flow skeleton
 - top hotspots/hubs
 
 Treat as recoverable on demand through tools:
+
 - boilerplate
 - generated code
 - straightforward adapters

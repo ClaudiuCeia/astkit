@@ -3,6 +3,7 @@
 `sgrep` performs structural search over source files using hole/metavariable syntax.
 
 Pattern input can be:
+
 - inline pattern text
 - a file path (resolved from `cwd`)
 
@@ -29,6 +30,7 @@ sgrep rules/find-const.sgrep src --cwd /repo
 `sgrep` expands the pattern through a small isomorphism engine before matching.
 
 Default rules:
+
 - `commutative-binary`: swaps operands for commutative operators (`+`, `*`, `&`, `|`, `^`, `==`, `===`, `!=`, `!==`)
 - `object-literal-property-order`: swaps adjacent object literal `key: value` entries when safe
 - `redundant-parentheses`: adds/removes extra parentheses around binary expressions
@@ -40,6 +42,7 @@ sgrep 'const total = :[x] + :[y];' src --no-isomorphisms
 ```
 
 Developer notes:
+
 - Rule registry: `src/isomorphisms/registry.ts`
 - Rule interface: `src/isomorphisms/types.ts`
 - Expansion engine: `src/isomorphisms/expand.ts`

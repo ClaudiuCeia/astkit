@@ -15,10 +15,7 @@ export const redundantParenthesesRule: IsomorphismRule = {
         const innerEnd = node.expression.end;
         const innerText = context.source.slice(innerStart, innerEnd);
         if (innerText.length > 0) {
-          const variant =
-            context.source.slice(0, start) +
-            innerText +
-            context.source.slice(end);
+          const variant = context.source.slice(0, start) + innerText + context.source.slice(end);
           if (variant !== context.source) {
             variants.add(variant);
           }
@@ -31,9 +28,7 @@ export const redundantParenthesesRule: IsomorphismRule = {
         const expressionText = context.source.slice(start, end);
         if (expressionText.length > 0) {
           const variant =
-            context.source.slice(0, start) +
-            `(${expressionText})` +
-            context.source.slice(end);
+            context.source.slice(0, start) + `(${expressionText})` + context.source.slice(end);
           if (variant !== context.source) {
             variants.add(variant);
           }

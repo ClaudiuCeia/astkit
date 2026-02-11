@@ -24,11 +24,7 @@ export async function parsePatchInvocation(
   patchInput: string,
   options: SpatchOptions = {},
 ): Promise<ParsedPatchInvocation> {
-  const invocation = await parseTextInvocation(
-    patchInput,
-    options,
-    parsePatchSpec,
-  );
+  const invocation = await parseTextInvocation(patchInput, options, parsePatchSpec);
 
   return {
     patch: invocation.spec,

@@ -42,27 +42,16 @@ export function formatSearchOutput(
 
   const chalkInstance = buildChalk(options);
   const useColor = chalkInstance.level > 0;
-  const captureColorMap = useColor
-    ? buildCaptureColorMap(result)
-    : new Map<string, number>();
+  const captureColorMap = useColor ? buildCaptureColorMap(result) : new Map<string, number>();
   const lines: string[] = [];
 
   for (const file of result.files) {
-    lines.push(
-      useColor ? chalkInstance.gray(`//${file.file}`) : `//${file.file}`,
-    );
+    lines.push(useColor ? chalkInstance.gray(`//${file.file}`) : `//${file.file}`);
     for (const match of file.matches) {
       const preview = buildMatchPreview(match.matched);
-      const linePrefix = useColor
-        ? chalkInstance.gray(`${match.line}: `)
-        : `${match.line}: `;
+      const linePrefix = useColor ? chalkInstance.gray(`${match.line}: `) : `${match.line}: `;
       const highlightedPreview = useColor
-        ? highlightCaptures(
-            preview.text,
-            match.captures,
-            chalkInstance,
-            captureColorMap,
-          )
+        ? highlightCaptures(preview.text, match.captures, chalkInstance, captureColorMap)
         : preview.text;
       const previewSuffix = preview.truncated
         ? useColor
@@ -124,9 +113,7 @@ function highlightCaptures(
 
   const captureEntries = Object.entries(captures)
     .map(([name, value]) => [name, toPreviewSearchValue(value)] as const)
-    .filter(
-      ([name, value]) => name.length > 0 && value.length > 0,
-    );
+    .filter(([name, value]) => name.length > 0 && value.length > 0);
   if (captureEntries.length === 0) {
     return preview;
   }
@@ -138,13 +125,11 @@ function highlightCaptures(
   }> = [];
 
   const sortedEntries = [...captureEntries].sort(
-    (left, right) =>
-      right[1].length - left[1].length || left[0].localeCompare(right[0]),
+    (left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]),
   );
   for (let entryIndex = 0; entryIndex < sortedEntries.length; entryIndex += 1) {
     const [name, value] = sortedEntries[entryIndex]!;
-    const colorIndex =
-      captureColorMap.get(name) ?? (entryIndex % colorPalette.length);
+    const colorIndex = captureColorMap.get(name) ?? entryIndex % colorPalette.length;
     let fromIndex = 0;
 
     while (fromIndex < preview.length) {
@@ -154,9 +139,7 @@ function highlightCaptures(
       }
 
       const matchEnd = matchIndex + value.length;
-      const overlaps = ranges.some(
-        (range) => matchIndex < range.end && range.start < matchEnd,
-      );
+      const overlaps = ranges.some((range) => matchIndex < range.end && range.start < matchEnd);
       if (!overlaps) {
         ranges.push({
           start: matchIndex,

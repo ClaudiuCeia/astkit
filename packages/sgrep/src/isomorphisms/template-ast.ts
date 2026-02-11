@@ -3,9 +3,7 @@ import { tokenizeTemplate } from "@claudiu-ceia/astkit-core";
 import type { TemplateToken } from "@claudiu-ceia/astkit-core";
 import type { IsomorphismContext } from "./types.ts";
 
-export function parseTemplateIsomorphismContext(
-  source: string,
-): IsomorphismContext | null {
+export function parseTemplateIsomorphismContext(source: string): IsomorphismContext | null {
   let tokens: TemplateToken[];
   try {
     tokens = tokenizeTemplate(source);

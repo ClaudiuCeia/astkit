@@ -36,10 +36,10 @@ function parseArgs(argv: string[]): { tolerance: number; init: boolean } {
 }
 
 async function runBenchesJson(): Promise<CurrentRun> {
-  const proc = Bun.spawn(
-    ["bun", "run", "bench/run.ts", "--json"],
-    { stdout: "pipe", stderr: "inherit" },
-  );
+  const proc = Bun.spawn(["bun", "run", "bench/run.ts", "--json"], {
+    stdout: "pipe",
+    stderr: "inherit",
+  });
   const text = await new Response(proc.stdout).text();
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
@@ -48,7 +48,9 @@ async function runBenchesJson(): Promise<CurrentRun> {
   return JSON.parse(text) as CurrentRun;
 }
 
-function indexResults(results: Array<{ name: string; avg: number; p50: number }>): Map<string, number> {
+function indexResults(
+  results: Array<{ name: string; avg: number; p50: number }>,
+): Map<string, number> {
   const map = new Map<string, number>();
   for (const r of results) {
     // p50 tends to be more stable than avg for noisy async benches.
@@ -70,10 +72,10 @@ try {
     );
   }
 
-  const initProc = Bun.spawn(
-    ["bun", "run", "bench/baseline.ts"],
-    { stdout: "inherit", stderr: "inherit" },
-  );
+  const initProc = Bun.spawn(["bun", "run", "bench/baseline.ts"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  });
   const initExit = await initProc.exited;
   if (initExit !== 0) {
     throw new Error(`baseline init failed with exit code ${initExit}`);

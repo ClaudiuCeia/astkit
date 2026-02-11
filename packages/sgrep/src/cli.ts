@@ -138,4 +138,3 @@ if (flags.json ?? false) {
     process.stdout.write(`${output}\n`);
   }
 }
-

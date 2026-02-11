@@ -48,9 +48,7 @@ export const objectLiteralPropertyOrderRule: IsomorphismRule = {
           separator +
           context.source.slice(leftStart, leftEnd);
         const variant =
-          context.source.slice(0, leftStart) +
-          swappedSegment +
-          context.source.slice(rightEnd);
+          context.source.slice(0, leftStart) + swappedSegment + context.source.slice(rightEnd);
         if (variant !== context.source) {
           variants.add(variant);
         }
@@ -61,16 +59,11 @@ export const objectLiteralPropertyOrderRule: IsomorphismRule = {
   },
 };
 
-function isReorderableMapObject(
-  properties: readonly ts.ObjectLiteralElementLike[],
-): boolean {
+function isReorderableMapObject(properties: readonly ts.ObjectLiteralElementLike[]): boolean {
   const seenKeys = new Set<string>();
 
   for (const property of properties) {
-    if (
-      !ts.isPropertyAssignment(property) &&
-      !ts.isShorthandPropertyAssignment(property)
-    ) {
+    if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) {
       return false;
     }
 

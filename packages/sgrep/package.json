@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "description": "Structural grep for TS/JS using metavariable templates.",
   "license": "MIT",
+  "bin": {
+    "sgrep": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,17 +23,6 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "sgrep": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "src",
-    "README.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -34,5 +31,8 @@
     "@stricli/core": "^1.2.5",
     "chalk": "^5.6.2",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

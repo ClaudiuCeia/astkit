@@ -1,8 +1,5 @@
 import { buildSpatchResult } from "./phases/output.ts";
-import {
-  parsePatchInvocation,
-  type ParsedPatchSpec,
-} from "./phases/parse.ts";
+import { parsePatchInvocation, type ParsedPatchSpec } from "./phases/parse.ts";
 import { rewriteProject } from "./phases/rewrite.ts";
 import type { SpatchOptions, SpatchResult } from "./types.ts";
 

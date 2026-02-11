@@ -28,25 +28,26 @@ const lineContentParser = parseRegex(/[^\n]*/, "line content");
 
 const escapedMarkerLineParser = map(
   seq(str("\\"), any(str("+"), str("-")), lineContentParser),
-  ([, marker, content]) => ({
-    kind: "context",
-    value: `${marker}${content}`,
-  } satisfies ParsedPatchLine),
+  ([, marker, content]) =>
+    ({
+      kind: "context",
+      value: `${marker}${content}`,
+    }) satisfies ParsedPatchLine,
 );
 
 const additionLineParser = map(
   seq(str("+"), lineContentParser),
-  ([, content]) => ({ kind: "addition", value: content } satisfies ParsedPatchLine),
+  ([, content]) => ({ kind: "addition", value: content }) satisfies ParsedPatchLine,
 );
 
 const deletionLineParser = map(
   seq(str("-"), lineContentParser),
-  ([, content]) => ({ kind: "deletion", value: content } satisfies ParsedPatchLine),
+  ([, content]) => ({ kind: "deletion", value: content }) satisfies ParsedPatchLine,
 );
 
 const contextLineParser = map(
   lineContentParser,
-  (content) => ({ kind: "context", value: content } satisfies ParsedPatchLine),
+  (content) => ({ kind: "context", value: content }) satisfies ParsedPatchLine,
 );
 
 const patchLineParser = any(
@@ -114,9 +115,7 @@ export function parsePatchDocument(source: string): ParsedPatchDocument {
   }
 
   if (additions === 0 && deletions === 0) {
-    throw new Error(
-      "Patch document must contain at least one '+' or '-' line.",
-    );
+    throw new Error("Patch document must contain at least one '+' or '-' line.");
   }
 
   const pattern = patternLines.join("\n");

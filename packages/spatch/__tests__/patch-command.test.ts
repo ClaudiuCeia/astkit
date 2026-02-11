@@ -3,11 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
-import {
-  formatPatchOutput,
-  runPatchCommand,
-  validatePatchCommandFlags,
-} from "../src/command.ts";
+import { formatPatchOutput, runPatchCommand, validatePatchCommandFlags } from "../src/command.ts";
 import { validateSelectedOccurrences } from "../src/command/interactive.ts";
 import type { SpatchResult } from "../src/types.ts";
 
@@ -18,9 +14,7 @@ test("runPatchCommand applies patch document string in scope", async () => {
     const target = path.join(workspace, "sample.ts");
     await writeFile(target, "const value = 1;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await runPatchCommand(patch, workspace, {});
 
@@ -83,9 +77,7 @@ test("runPatchCommand supports dryRun flag", async () => {
     const original = "const value = 1;\n";
     await writeFile(target, original, "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await runPatchCommand(patch, workspace, { "dry-run": true });
 
@@ -105,9 +97,7 @@ test("runPatchCommand supports check flag as dry-run guardrail", async () => {
     const original = "const value = 1;\n";
     await writeFile(target, original, "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await runPatchCommand(patch, workspace, { check: true });
 
@@ -126,9 +116,7 @@ test("runPatchCommand interactive mode applies selected matches only", async () 
     const target = path.join(workspace, "sample.ts");
     await writeFile(target, "const first = 1;\nconst second = 2;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const answers: Array<"yes" | "no"> = ["yes", "no"];
     const result = await runPatchCommand(
@@ -157,9 +145,7 @@ test("runPatchCommand interactive decider receives progress metadata", async () 
     const target = path.join(workspace, "sample.ts");
     await writeFile(target, "const first = 1;\nconst second = 2;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const seen: Array<{ changeNumber: number; totalChanges: number }> = [];
     await runPatchCommand(
@@ -191,14 +177,9 @@ test("runPatchCommand interactive mode honors encoding for file IO", async () =>
 
   try {
     const target = path.join(workspace, "sample.ts");
-    await writeFile(
-      target,
-      Buffer.from("// café\nconst value = 1;\n", "latin1"),
-    );
+    await writeFile(target, Buffer.from("// café\nconst value = 1;\n", "latin1"));
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await runPatchCommand(
       patch,
@@ -229,9 +210,7 @@ test("runPatchCommand interactive aborts when file changes before apply and avoi
     await writeFile(firstFile, "const first = 1;\n", "utf8");
     await writeFile(secondFile, "const second = 2;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const externallyMutatedSecond = "/* external edit */\nconst second = 2;\n";
     let mutated = false;
@@ -298,15 +277,15 @@ test("runPatchCommand validates flag combinations before reading patch input", a
 });
 
 test("validatePatchCommandFlags rejects --interactive with --dry-run", () => {
-  expect(() =>
-    validatePatchCommandFlags({ interactive: true, "dry-run": true }),
-  ).toThrow("Cannot combine --interactive with --dry-run.");
+  expect(() => validatePatchCommandFlags({ interactive: true, "dry-run": true })).toThrow(
+    "Cannot combine --interactive with --dry-run.",
+  );
 });
 
 test("validatePatchCommandFlags rejects --interactive with --check", () => {
-  expect(() =>
-    validatePatchCommandFlags({ interactive: true, check: true }),
-  ).toThrow("Cannot combine --interactive with --check.");
+  expect(() => validatePatchCommandFlags({ interactive: true, check: true })).toThrow(
+    "Cannot combine --interactive with --check.",
+  );
 });
 
 test("validateSelectedOccurrences rejects overlapping spans", () => {
@@ -370,9 +349,7 @@ test("runPatchCommand interactive mode forwards concurrency and verbose logger",
     const target = path.join(workspace, "sample.ts");
     await writeFile(target, "const first = 1;\nconst second = 2;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
     const logs: string[] = [];
 
     await runPatchCommand(
@@ -525,14 +502,7 @@ test("cli --check exits non-zero when replacements would be made", async () => {
     );
 
     const cli = Bun.spawnSync({
-      cmd: [
-        "bun",
-        "run",
-        "packages/spatch/src/cli.ts",
-        patchFile,
-        workspace,
-        "--check",
-      ],
+      cmd: ["bun", "run", "packages/spatch/src/cli.ts", patchFile, workspace, "--check"],
       cwd: process.cwd(),
       stdout: "pipe",
       stderr: "pipe",

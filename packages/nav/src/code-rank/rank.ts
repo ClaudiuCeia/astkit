@@ -38,9 +38,7 @@ export type CodeRankResult = {
   symbols: RankedSymbol[];
 };
 
-export async function rankCode(
-  options: CodeRankOptions = {},
-): Promise<CodeRankResult> {
+export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankResult> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const scope = options.scope ?? ".";
   const resolvedScope = path.resolve(cwd, scope);
@@ -180,8 +178,7 @@ function collectReferenceStats(
       }
 
       referencingFiles.add(
-        relativePath(projectRoot, reference.fileName) ||
-          path.basename(reference.fileName),
+        relativePath(projectRoot, reference.fileName) || path.basename(reference.fileName),
       );
     }
   }
@@ -190,17 +187,13 @@ function collectReferenceStats(
     referenceCount,
     internalReferenceCount,
     externalReferenceCount,
-    referencingFiles: [...referencingFiles].sort((left, right) =>
-      left.localeCompare(right),
-    ),
+    referencingFiles: [...referencingFiles].sort((left, right) => left.localeCompare(right)),
   };
 }
 
 function computeRankScore(stats: ReferenceStats): number {
   return (
-    stats.externalReferenceCount * 4 +
-    stats.referenceCount +
-    stats.referencingFiles.length * 2
+    stats.externalReferenceCount * 4 + stats.referenceCount + stats.referencingFiles.length * 2
   );
 }
 
@@ -215,10 +208,7 @@ function compareRankedSymbols(left: RankedSymbol, right: RankedSymbol): number {
   );
 }
 
-function pickDeclarationInFile(
-  symbol: ts.Symbol,
-  filePath: string,
-): ts.Declaration | null {
+function pickDeclarationInFile(symbol: ts.Symbol, filePath: string): ts.Declaration | null {
   const normalizedFilePath = path.resolve(filePath);
   const declarations = symbol.getDeclarations();
   if (!declarations || declarations.length === 0) {
@@ -227,10 +217,7 @@ function pickDeclarationInFile(
 
   for (const declaration of declarations) {
     const declarationFile = path.resolve(declaration.getSourceFile().fileName);
-    if (
-      declarationFile === normalizedFilePath &&
-      isRankableDeclaration(declaration)
-    ) {
+    if (declarationFile === normalizedFilePath && isRankableDeclaration(declaration)) {
       return declaration;
     }
   }

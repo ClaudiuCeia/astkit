@@ -63,9 +63,7 @@ export async function searchProjectFiles(
     excludedDirectories: options.excludedDirectories,
   });
   if (verbose > 0) {
-    log(
-      `[sgrep] collectFiles ${formatMs(nsToMs(nowNs() - collectStarted))} files=${files.length}`,
-    );
+    log(`[sgrep] collectFiles ${formatMs(nsToMs(nowNs() - collectStarted))} files=${files.length}`);
   }
 
   const slowFiles: Array<{ file: string; ms: number; matches: number }> = [];
@@ -101,9 +99,7 @@ export async function searchProjectFiles(
     { concurrency },
   );
   if (verbose > 0) {
-    log(
-      `[sgrep] scanFiles ${formatMs(nsToMs(nowNs() - scanStarted))} concurrency=${concurrency}`,
-    );
+    log(`[sgrep] scanFiles ${formatMs(nsToMs(nowNs() - scanStarted))} concurrency=${concurrency}`);
     // Cumulative times can exceed wall-clock with concurrency (IO overlap),
     // but they're still useful to show where work is spent.
     log(
@@ -126,9 +122,7 @@ export async function searchProjectFiles(
   if (verbose >= 2 && slowFiles.length > 0) {
     slowFiles.sort((a, b) => b.ms - a.ms);
     for (const entry of slowFiles.slice(0, 10)) {
-      log(
-        `[sgrep] slowFile ${formatMs(entry.ms)} file=${entry.file} matches=${entry.matches}`,
-      );
+      log(`[sgrep] slowFile ${formatMs(entry.ms)} file=${entry.file} matches=${entry.matches}`);
     }
   }
 
@@ -156,9 +150,7 @@ type SearchFileInput = {
   stats?: SearchPerfStats;
 };
 
-async function searchFile(
-  input: SearchFileInput,
-): Promise<SgrepFileResult | null> {
+async function searchFile(input: SearchFileInput): Promise<SgrepFileResult | null> {
   const readStarted = input.stats ? nowNs() : 0n;
   const sourceText = await readFile(input.filePath, input.encoding);
   if (input.stats) {
@@ -201,9 +193,7 @@ async function searchFile(
   };
 }
 
-function filterPublicCaptures(
-  captures: Record<string, string>,
-): Record<string, string> {
+function filterPublicCaptures(captures: Record<string, string>): Record<string, string> {
   const entries = Object.entries(captures).filter(
     ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
   );

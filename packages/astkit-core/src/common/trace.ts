@@ -1,7 +1,7 @@
 export function nowNs(): bigint {
   // Prefer runtime-agnostic high-resolution clock.
-  const hr = (globalThis as unknown as { process?: { hrtime?: { bigint?: () => bigint } } })
-    .process?.hrtime?.bigint;
+  const hr = (globalThis as unknown as { process?: { hrtime?: { bigint?: () => bigint } } }).process
+    ?.hrtime?.bigint;
   if (typeof hr === "function") {
     return hr();
   }
@@ -32,4 +32,3 @@ export function formatMs(ms: number): string {
   }
   return `${ms.toFixed(2)}ms`;
 }
-

@@ -17,4 +17,3 @@ Library:
 ```ts
 import { getDeclarations, getDefinition, getReferences, rankCode } from "@claudiu-ceia/nav";
 ```
-

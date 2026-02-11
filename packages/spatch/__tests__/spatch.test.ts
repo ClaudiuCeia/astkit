@@ -16,10 +16,7 @@ test("patchProject rewrites matching files in directory scope", async () => {
     await writeFile(beta, "const sum = one + two;\n", "utf8");
     await writeFile(markdown, "const untouched = true;\n", "utf8");
 
-    const patch = [
-      "-const :[name] = :[value];",
-      "+let :[name] = :[value];",
-    ].join("\n");
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, { scope: workspace });
 
@@ -45,10 +42,7 @@ test("patchProject dry run does not write files", async () => {
     const original = "const value = 1;\n";
     await writeFile(file, original, "utf8");
 
-    const patch = [
-      "-const :[name] = :[value];",
-      "+let :[name] = :[value];",
-    ].join("\n");
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, {
       scope: workspace,
@@ -78,9 +72,7 @@ test("patchProject enforces repeated hole equality", async () => {
 
     expect(result.totalMatches).toBe(1);
     expect(result.totalReplacements).toBe(1);
-    expect(await readFile(file, "utf8")).toBe(
-      "const a = double(foo);\nconst b = foo + bar;\n",
-    );
+    expect(await readFile(file, "utf8")).toBe("const a = double(foo);\nconst b = foo + bar;\n");
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -118,9 +110,7 @@ test("patchProject reports scope-relative file paths when scope is outside cwd",
     await mkdir(srcDir, { recursive: true });
     await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, { scope: srcDir });
 
@@ -139,9 +129,7 @@ test("patchProject keeps cwd-relative file paths when scope is within cwd", asyn
     await mkdir(srcDir, { recursive: true });
     await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, {
       cwd: workspace,
@@ -160,11 +148,7 @@ test("patchProject supports regex-constrained holes", async () => {
 
   try {
     const file = path.join(workspace, "values.ts");
-    await writeFile(
-      file,
-      "const lower = 1;\nconst Upper = 2;\nconst other = text;\n",
-      "utf8",
-    );
+    await writeFile(file, "const lower = 1;\nconst Upper = 2;\nconst other = text;\n", "utf8");
 
     const patch = [
       "-const :[name~[a-z]+] = :[value~\\d+];",
@@ -192,13 +176,7 @@ test("patchProject accepts patch document syntax (+/- lines)", async () => {
     const file = path.join(workspace, "wrapper.ts");
     await writeFile(
       file,
-      [
-        "function wrap() {",
-        "  const value = 1;",
-        "  return value;",
-        "}",
-        "",
-      ].join("\n"),
+      ["function wrap() {", "  const value = 1;", "  return value;", "}", ""].join("\n"),
       "utf8",
     );
 
@@ -218,13 +196,7 @@ test("patchProject accepts patch document syntax (+/- lines)", async () => {
     expect(result.totalMatches).toBe(1);
     expect(result.filesChanged).toBe(1);
     expect(await readFile(file, "utf8")).toBe(
-      [
-        "function wrap() {",
-        "  let value = 1;",
-        "  return value;",
-        "}",
-        "",
-      ].join("\n"),
+      ["function wrap() {", "  let value = 1;", "  return value;", "}", ""].join("\n"),
     );
   } finally {
     await rm(workspace, { recursive: true, force: true });
@@ -238,9 +210,7 @@ test("patchProject supports escaped markers", async () => {
     const file = path.join(workspace, "symbols.ts");
     await writeFile(file, "-keep\n+keep\nold\n", "utf8");
 
-    const oneFilePatch = ["\\-keep", "\\+keep", "-old", "+new", ""].join(
-      "\n",
-    );
+    const oneFilePatch = ["\\-keep", "\\+keep", "-old", "+new", ""].join("\n");
 
     const result = await patchProject(oneFilePatch, {
       scope: workspace,
@@ -293,9 +263,7 @@ test("patchProject skips unbalanced captures", async () => {
     });
 
     expect(result.totalMatches).toBe(1);
-    expect(await readFile(file, "utf8")).toBe(
-      "const a = run((x);\nconst b = exec((x));\n",
-    );
+    expect(await readFile(file, "utf8")).toBe("const a = run((x);\nconst b = exec((x));\n");
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -308,9 +276,7 @@ test("patchProject throws for unknown replacement holes", async () => {
     const file = path.join(workspace, "sample.ts");
     await writeFile(file, "const value = 1;\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[missing] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[missing] = :[value];"].join("\n");
 
     let thrown: unknown = null;
     try {
@@ -332,11 +298,7 @@ test("patchProject supports ellipsis wildcard", async () => {
 
   try {
     const file = path.join(workspace, "calls.ts");
-    await writeFile(
-      file,
-      "foo(first, second, third);\nfoo(one, two);\n",
-      "utf8",
-    );
+    await writeFile(file, "foo(first, second, third);\nfoo(one, two);\n", "utf8");
 
     const patch = ["-foo(:[x], ...);", "+bar(:[x], ...);"].join("\n");
 
@@ -346,9 +308,7 @@ test("patchProject supports ellipsis wildcard", async () => {
 
     expect(result.totalMatches).toBe(2);
     expect(result.totalReplacements).toBe(2);
-    expect(await readFile(file, "utf8")).toBe(
-      "bar(first, second, third);\nbar(one, two);\n",
-    );
+    expect(await readFile(file, "utf8")).toBe("bar(first, second, third);\nbar(one, two);\n");
     expect(result.files[0]?.occurrences[0]?.captures).toEqual({ x: "first" });
   } finally {
     await rm(workspace, { recursive: true, force: true });
@@ -362,9 +322,7 @@ test("patchProject rewrites CRLF files with LF patch documents", async () => {
     const file = path.join(workspace, "windows.ts");
     await writeFile(file, "const value = 1;\r\nconst next = 2;\r\n", "utf8");
 
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
-      "\n",
-    );
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, {
       scope: workspace,

@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "description": "Shared core utilities for astkit packages (pattern matching, file scanning, tracing).",
   "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,18 +20,13 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "src",
-    "README.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
     "@claudiu-ceia/combine": "^0.2.6"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

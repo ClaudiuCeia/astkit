@@ -37,10 +37,7 @@ export async function resolveTextInput(
   }
 }
 
-export async function parseTextInvocation<
-  TSpec,
-  TOptions extends ResolveTextInputOptions,
->(
+export async function parseTextInvocation<TSpec, TOptions extends ResolveTextInputOptions>(
   input: string,
   options: TOptions,
   parseSpec: (text: string) => TSpec,

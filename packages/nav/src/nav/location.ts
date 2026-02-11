@@ -1,10 +1,4 @@
-import {
-  eof,
-  map,
-  regex as parseRegex,
-  seq,
-  str,
-} from "@claudiu-ceia/combine";
+import { eof, map, regex as parseRegex, seq, str } from "@claudiu-ceia/combine";
 
 export type FilePosition = {
   file: string;
@@ -12,15 +6,11 @@ export type FilePosition = {
   character: number;
 };
 
-const LOCATION_ERROR_MESSAGE =
-  "Invalid location: expected <file>:<line>:<character>.";
+const LOCATION_ERROR_MESSAGE = "Invalid location: expected <file>:<line>:<character>.";
 
 const positiveIntegerParser = parseRegex(/[1-9][0-9]*/, "positive integer");
 
-const fileForColonSyntaxParser = parseRegex(
-  /[^\n]+(?=:[1-9][0-9]*:[1-9][0-9]*$)/,
-  "file path",
-);
+const fileForColonSyntaxParser = parseRegex(/[^\n]+(?=:[1-9][0-9]*:[1-9][0-9]*$)/, "file path");
 
 const colonFilePositionParser = map(
   seq(

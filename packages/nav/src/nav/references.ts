@@ -32,7 +32,10 @@ export function getReferences(filePath: string, line: number, character: number)
   if (!refSymbols || refSymbols.length === 0) {
     const wordRange = service.getSmartSelectionRange(resolved, pos);
     const symbolName = wordRange
-      ? sourceFile.text.slice(wordRange.textSpan.start, wordRange.textSpan.start + wordRange.textSpan.length)
+      ? sourceFile.text.slice(
+          wordRange.textSpan.start,
+          wordRange.textSpan.start + wordRange.textSpan.length,
+        )
       : "<unknown>";
     return { symbol: symbolName, definition: null, references: [] };
   }

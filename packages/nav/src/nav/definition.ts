@@ -32,7 +32,10 @@ export function getDefinition(filePath: string, line: number, character: number)
     // Get the word at position for the symbol name
     const wordRange = service.getSmartSelectionRange(resolved, pos);
     const symbolName = wordRange
-      ? sourceFile.text.slice(wordRange.textSpan.start, wordRange.textSpan.start + wordRange.textSpan.length)
+      ? sourceFile.text.slice(
+          wordRange.textSpan.start,
+          wordRange.textSpan.start + wordRange.textSpan.length,
+        )
       : "<unknown>";
     return { symbol: symbolName, definitions: [] };
   }

@@ -2,15 +2,32 @@
   "name": "@claudiu-ceia/astkit",
   "version": "0.1.3",
   "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
+  "keywords": [
+    "ast",
+    "code-navigation",
+    "code-search",
+    "codemod",
+    "javascript",
+    "llm-tools",
+    "typescript"
+  ],
+  "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
+  "bugs": {
+    "url": "https://github.com/ClaudiuCeia/astkit/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ClaudiuCeia/astkit.git"
   },
-  "bugs": {
-    "url": "https://github.com/ClaudiuCeia/astkit/issues"
+  "bin": {
+    "astkit": "./dist/cli.js"
   },
-  "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "skills/astkit-tooling"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,26 +40,6 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "astkit": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "skills/astkit-tooling"
-  ],
-  "keywords": [
-    "typescript",
-    "javascript",
-    "ast",
-    "codemod",
-    "code-search",
-    "code-navigation",
-    "llm-tools"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -54,5 +51,8 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

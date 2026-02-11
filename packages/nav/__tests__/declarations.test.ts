@@ -121,9 +121,7 @@ test("formats declarations as compact text by default", () => {
 });
 
 test("includes jsdoc blocks when available", () => {
-  const result = getDeclarations(
-    path.resolve(fixturesDir, "..", "..", "src", "service.ts"),
-  );
+  const result = getDeclarations(path.resolve(fixturesDir, "..", "..", "src", "service.ts"));
   const output = formatDeclarationsOutput(result);
 
   expect(output).toContain("Convert 1-indexed line:character to 0-indexed offset");

@@ -69,9 +69,7 @@ export async function rewriteProject(
     compiledReplacement: compileReplacementTemplate(patch.replacement),
   });
   if (verbose > 0) {
-    log(
-      `[spatch] compilePattern ${formatMs(nsToMs(nowNs() - compileStarted))}`,
-    );
+    log(`[spatch] compilePattern ${formatMs(nsToMs(nowNs() - compileStarted))}`);
   }
 
   const collectStarted = verbose > 0 ? nowNs() : 0n;
@@ -87,8 +85,7 @@ export async function rewriteProject(
     );
   }
 
-  const slowFiles: Array<{ file: string; ms: number; matches: number; replacements: number }> =
-    [];
+  const slowFiles: Array<{ file: string; ms: number; matches: number; replacements: number }> = [];
   const stats: RewritePerfStats = {
     filesRead: 0,
     readNs: 0n,
@@ -203,9 +200,7 @@ type RewriteFileInput = {
   stats?: RewritePerfStats;
 };
 
-async function rewriteFile(
-  input: RewriteFileInput,
-): Promise<SpatchFileResult | null> {
+async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | null> {
   const readStarted = input.stats ? nowNs() : 0n;
   const originalText = await readFile(input.filePath, input.encoding);
   if (input.stats) {
@@ -233,10 +228,7 @@ async function rewriteFile(
   const lineStarts = createLineStarts(originalText);
   const renderStarted = input.stats ? nowNs() : 0n;
   const occurrences = matches.map((match) => {
-    const rendered = renderCompiledTemplate(
-      patchVariant.compiledReplacement,
-      match.captures,
-    );
+    const rendered = renderCompiledTemplate(patchVariant.compiledReplacement, match.captures);
     const { line, character } = toLineCharacter(lineStarts, match.start);
     return {
       start: match.start,
@@ -253,8 +245,7 @@ async function rewriteFile(
   }
 
   const replacementCount = occurrences.reduce(
-    (count, occurrence) =>
-      count + (occurrence.matched === occurrence.replacement ? 0 : 1),
+    (count, occurrence) => count + (occurrence.matched === occurrence.replacement ? 0 : 1),
     0,
   );
   const applyStarted = input.stats ? nowNs() : 0n;
@@ -291,9 +282,7 @@ async function rewriteFile(
   };
 }
 
-function filterPublicCaptures(
-  captures: Record<string, string>,
-): Record<string, string> {
+function filterPublicCaptures(captures: Record<string, string>): Record<string, string> {
   const entries = Object.entries(captures).filter(
     ([name]) => !name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
   );
@@ -376,10 +365,7 @@ function resolvePatchVariant(input: {
   }
 
   const pattern = applyLineEnding(input.patternTemplate, input.lineEnding);
-  const replacementTemplate = applyLineEnding(
-    input.replacementTemplate,
-    input.lineEnding,
-  );
+  const replacementTemplate = applyLineEnding(input.replacementTemplate, input.lineEnding);
   const variant = {
     compiledPattern: compileTemplate(pattern),
     compiledReplacement: compileReplacementTemplate(replacementTemplate),

@@ -15,10 +15,10 @@ type CurrentRun = {
 };
 
 async function runBenchesJson(): Promise<CurrentRun> {
-  const proc = Bun.spawn(
-    ["bun", "run", "bench/run.ts", "--json"],
-    { stdout: "pipe", stderr: "inherit" },
-  );
+  const proc = Bun.spawn(["bun", "run", "bench/run.ts", "--json"], {
+    stdout: "pipe",
+    stderr: "inherit",
+  });
   const text = await new Response(proc.stdout).text();
   const exitCode = await proc.exited;
   if (exitCode !== 0) {

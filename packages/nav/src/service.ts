@@ -20,7 +20,9 @@ export function createService(
   if (configPath) {
     const { config, error } = ts.readConfigFile(configPath, ts.sys.readFile);
     if (error) {
-      throw new Error(`Failed to read tsconfig: ${ts.flattenDiagnosticMessageText(error.messageText, "\n")}`);
+      throw new Error(
+        `Failed to read tsconfig: ${ts.flattenDiagnosticMessageText(error.messageText, "\n")}`,
+      );
     }
     projectRoot = path.dirname(configPath);
     const parsed = ts.parseJsonConfigFileContent(config, ts.sys, projectRoot);
@@ -83,7 +85,10 @@ export function toPosition(sourceFile: ts.SourceFile, line: number, character: n
 }
 
 /** Convert 0-indexed offset to 1-indexed { line, character } */
-export function fromPosition(sourceFile: ts.SourceFile, offset: number): { line: number; character: number } {
+export function fromPosition(
+  sourceFile: ts.SourceFile,
+  offset: number,
+): { line: number; character: number } {
   const lc = sourceFile.getLineAndCharacterOfPosition(offset);
   return { line: lc.line + 1, character: lc.character + 1 };
 }

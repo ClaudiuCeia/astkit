@@ -1,10 +1,4 @@
-type Mode =
-  | "normal"
-  | "single"
-  | "double"
-  | "template"
-  | "line-comment"
-  | "block-comment";
+type Mode = "normal" | "single" | "double" | "template" | "line-comment" | "block-comment";
 
 type Delim = "(" | "[" | "{";
 
@@ -68,7 +62,7 @@ export function isBalancedChunk(chunk: string): boolean {
         i += 1;
         continue;
       }
-      if (ch === "\"") {
+      if (ch === '"') {
         mode = "normal";
       }
       continue;
@@ -107,7 +101,7 @@ export function isBalancedChunk(chunk: string): boolean {
       mode = "single";
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       mode = "double";
       continue;
     }
@@ -138,4 +132,3 @@ export function isBalancedChunk(chunk: string): boolean {
 
   return mode === "normal" && stack.length === 0;
 }
-

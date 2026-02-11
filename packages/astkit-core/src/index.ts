@@ -7,4 +7,3 @@ export type * from "./pattern/types.ts";
 
 export * from "./files.ts";
 export * from "./text.ts";
-

@@ -1,9 +1,4 @@
-export {
-  createService,
-  fromPosition,
-  relativePath,
-  toPosition,
-} from "./service.ts";
+export { createService, fromPosition, relativePath, toPosition } from "./service.ts";
 
 export { parseFilePosition } from "./nav/location.ts";
 export type { FilePosition } from "./nav/location.ts";
@@ -13,14 +8,8 @@ export {
   formatDeclarationsOutput,
   getDeclarations,
 } from "./nav/declarations.ts";
-export {
-  definitionCommand,
-  getDefinition,
-} from "./nav/definition.ts";
-export {
-  getReferences,
-  referencesCommand,
-} from "./nav/references.ts";
+export { definitionCommand, getDefinition } from "./nav/definition.ts";
+export { getReferences, referencesCommand } from "./nav/references.ts";
 
 export {
   codeRankCommand,
@@ -33,4 +22,3 @@ export {
   type CodeRankResult,
   type RankedSymbol,
 } from "./code-rank/rank.ts";
-

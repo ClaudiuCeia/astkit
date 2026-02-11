@@ -20,25 +20,19 @@ test("expandPatternIsomorphisms adds parenthesized variants", () => {
 });
 
 test("expandPatternIsomorphisms adds object literal key-order variants", () => {
-  const variants = expandPatternIsomorphisms(
-    "const map = { foo: :[x], bar: :[y] };",
-  );
+  const variants = expandPatternIsomorphisms("const map = { foo: :[x], bar: :[y] };");
 
   expect(variants).toContain("const map = { bar: :[y], foo: :[x] };");
 });
 
 test("expandPatternIsomorphisms skips object literals with spread entries", () => {
-  const variants = expandPatternIsomorphisms(
-    "const map = { foo: :[x], ...rest, bar: :[y] };",
-  );
+  const variants = expandPatternIsomorphisms("const map = { foo: :[x], ...rest, bar: :[y] };");
 
   expect(variants).not.toContain("const map = { bar: :[y], ...rest, foo: :[x] };");
 });
 
 test("expandPatternIsomorphisms skips duplicate object keys", () => {
-  const variants = expandPatternIsomorphisms(
-    "const map = { foo: :[x], foo: :[y] };",
-  );
+  const variants = expandPatternIsomorphisms("const map = { foo: :[x], foo: :[y] };");
 
   expect(variants).toEqual(["const map = { foo: :[x], foo: :[y] };"]);
 });
@@ -52,12 +46,9 @@ test("expandPatternIsomorphisms can be disabled", () => {
 });
 
 test("expandPatternIsomorphisms limits variant explosion", () => {
-  const variants = expandPatternIsomorphisms(
-    "const total = :[a] + :[b] + :[c] + :[d];",
-    {
-      maxVariants: 5,
-    },
-  );
+  const variants = expandPatternIsomorphisms("const total = :[a] + :[b] + :[c] + :[d];", {
+    maxVariants: 5,
+  });
 
   expect(variants.length).toBeLessThanOrEqual(5);
 });

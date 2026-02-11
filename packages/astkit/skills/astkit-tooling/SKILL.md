@@ -11,11 +11,13 @@ Keep scope narrow first, expand only when evidence is insufficient.
 ## Quick Start
 
 1. Confirm tool availability.
+
 - `astkit --help`
 - or `npx astkit --help`
 - or `bunx astkit --help`
 
 2. Start with one focused operation.
+
 - `astkit nav declarations <file>`
 - `astkit nav definition <file:line:character>`
 - `astkit nav references <file:line:character>`
@@ -28,42 +30,52 @@ Keep scope narrow first, expand only when evidence is insufficient.
 ## Working Workflow
 
 1. Map contracts before implementation details.
+
 - Use `nav declarations` and `nav definition` first.
 - Treat signatures/docs as intended contracts until contradicted by evidence.
 
 2. Clarify behavior from usage.
+
 - Use `nav references` to inspect representative callsites.
 - Prefer usage patterns over deep source reading for initial understanding.
 
 3. Estimate blast radius before edits.
+
 - Use `code-rank` and references to identify high-impact symbols.
 - Prefer localized changes when task scope is localized.
 
 4. Rewrite with structural tools.
+
 - Use `search` to find candidate shapes.
 - Use `patch --dry-run` before writing changes.
 - Use `patch --interactive` for high-risk or broad rewrites.
 
 5. Re-check and validate.
+
 - Re-run focused `search`/`nav references` on touched symbols.
 - Validate with `tsc` and relevant tests when available.
 
 ## Safe Rewrite Workflow
 
 1. Find candidate sites.
+
 - `astkit search '<pattern>' <scope> --json`
 
 2. Preview rewrite.
+
 - `astkit patch --dry-run '<patch-document>' <scope>`
 
 3. Apply rewrite.
+
 - `astkit patch '<patch-document>' <scope>`
 - Use `--interactive` for high-risk or broad edits.
 
 4. Re-check surfaced contracts.
+
 - Re-run focused `search` queries and `nav references` on touched symbols.
 
 5. Validate with compiler and tests.
+
 - Run `tsc` diagnostics.
 - Run focused tests for touched behavior.
 

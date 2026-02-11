@@ -72,4 +72,3 @@ if (args.json) {
     colors: process.stdout.isTTY,
   });
 }
-

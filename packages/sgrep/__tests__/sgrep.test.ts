@@ -8,11 +8,7 @@ test("searchProject finds structural matches across scoped files", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
 
   try {
-    await writeFile(
-      path.join(workspace, "alpha.ts"),
-      "const one = 1;\nconst two = 2;\n",
-      "utf8",
-    );
+    await writeFile(path.join(workspace, "alpha.ts"), "const one = 1;\nconst two = 2;\n", "utf8");
     await writeFile(path.join(workspace, "beta.ts"), "const sum = one + two;\n", "utf8");
     await writeFile(path.join(workspace, "notes.md"), "const ignored = true;\n", "utf8");
 
@@ -68,13 +64,10 @@ test("searchProject supports regex-constrained metavariables", async () => {
       "utf8",
     );
 
-    const result = await searchProject(
-      "const :[name~[a-z]+] = :[value~\\d+];",
-      {
-        cwd: workspace,
-        scope: ".",
-      },
-    );
+    const result = await searchProject("const :[name~[a-z]+] = :[value~\\d+];", {
+      cwd: workspace,
+      scope: ".",
+    });
 
     expect(result.totalMatches).toBe(1);
     expect(result.files[0]?.matches[0]?.captures).toEqual({
@@ -318,7 +311,7 @@ test("searchProject matches reordered object literal key/value entries", async (
   try {
     await writeFile(
       path.join(workspace, "map.ts"),
-      'const map = { bar: second, foo: first };\n',
+      "const map = { bar: second, foo: first };\n",
       "utf8",
     );
 

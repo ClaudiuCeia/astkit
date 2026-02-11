@@ -5,6 +5,7 @@ CLI tool providing structural code intelligence for LLM agents working with Type
 ## Problem
 
 LLM agents waste context window budget on:
+
 - **regex search**: noisy, misses structural patterns, returns irrelevant matches
 - **manual patching**: opening files one by one, applying changes per callsite — slow, incomplete
 - **reading full files**: implementation detail floods context when only the public API matters
@@ -14,6 +15,7 @@ LLM agents waste context window budget on:
 Three tool categories exposed as CLI subcommands:
 
 ### `nav` — code navigation and reading
+
 Read code through declarations and type signatures, not raw file contents.
 
 - `astkit nav declarations <file>` — list exported signatures (no bodies)
@@ -21,12 +23,14 @@ Read code through declarations and type signatures, not raw file contents.
 - `astkit nav references <file> <line> <character>` — find all references
 
 ### `search` — syntactic/structural grep
+
 Structural pattern matching that understands code syntax.
 
 - `astkit search <pattern> [scope]` — syntactic structural search
 - `astkit search --type <type-query> [scope]` — type-aware search (TS compiler)
 
 ### `patch` — syntactic/structural rewrite
+
 Structural code transformation using pattern matching.
 
 - `astkit patch <pattern> <replacement> [scope]` — structural rewrite
@@ -43,13 +47,13 @@ Structural code transformation using pattern matching.
 
 ## Tech stack
 
-| Concern | Choice | Notes |
-|---------|--------|-------|
-| Code navigation | TypeScript compiler API | Language service for declarations, definitions, references |
-| Structural patching | `@claudiu-ceia/combine` | Comby-inspired structural matching/rewriting |
-| Structural search | TBD | Likely ast-grep or tree-sitter queries |
-| CLI framework | `stricli` | Zero deps, TS-first, nested subcommands, lazy loading |
-| Target runtime | Node.js >=18 / Bun | No runtime-specific APIs in the tool itself |
+| Concern             | Choice                  | Notes                                                      |
+| ------------------- | ----------------------- | ---------------------------------------------------------- |
+| Code navigation     | TypeScript compiler API | Language service for declarations, definitions, references |
+| Structural patching | `@claudiu-ceia/combine` | Comby-inspired structural matching/rewriting               |
+| Structural search   | TBD                     | Likely ast-grep or tree-sitter queries                     |
+| CLI framework       | `stricli`               | Zero deps, TS-first, nested subcommands, lazy loading      |
+| Target runtime      | Node.js >=18 / Bun      | No runtime-specific APIs in the tool itself                |
 
 ## Distribution
 
@@ -60,21 +64,25 @@ npm package with a `bin` entry point. Users install as a devDependency or run vi
 ## Development
 
 ### Setup
+
 ```sh
 bun install
 ```
 
 ### Running
+
 ```sh
 bun run astkit -- <command> [args]
 ```
 
 ### Testing
+
 ```sh
 bun test
 ```
 
 ### Conventions
+
 - Use standard Node.js APIs — not Bun-specific builtins (`Bun.file`, `bun:sqlite`, etc.)
 - Use `bun test` with `import { test, expect } from "bun:test"` for tests
 - TypeScript strict mode

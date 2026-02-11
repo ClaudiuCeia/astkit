@@ -1,23 +1,10 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  stdin as processStdin,
-  stdout as processStdout,
-} from "node:process";
+import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { patchProject } from "../spatch.ts";
-import type {
-  SpatchFileResult,
-  SpatchOccurrence,
-  SpatchOptions,
-  SpatchResult,
-} from "../types.ts";
-import {
-  buildChalk,
-  countLines,
-  splitDiffLines,
-  type FormatPatchOutputOptions,
-} from "./output.ts";
+import type { SpatchFileResult, SpatchOccurrence, SpatchOptions, SpatchResult } from "../types.ts";
+import { buildChalk, countLines, splitDiffLines, type FormatPatchOutputOptions } from "./output.ts";
 
 export type InteractiveChoice = "yes" | "no" | "all" | "quit";
 
@@ -30,14 +17,13 @@ export type InteractiveContext = {
 
 export type InteractiveDecider = (ctx: InteractiveContext) => Promise<InteractiveChoice>;
 
-export type RunInteractivePatchCommandOptions =
-  Pick<
-    SpatchOptions,
-    "concurrency" | "cwd" | "encoding" | "logger" | "scope" | "verbose"
-  > & {
-    noColor: boolean;
-    interactiveDecider?: InteractiveDecider;
-  };
+export type RunInteractivePatchCommandOptions = Pick<
+  SpatchOptions,
+  "concurrency" | "cwd" | "encoding" | "logger" | "scope" | "verbose"
+> & {
+  noColor: boolean;
+  interactiveDecider?: InteractiveDecider;
+};
 
 export async function runInteractivePatchCommand(
   patchInput: string,
@@ -68,21 +54,15 @@ export async function runInteractivePatchCommand(
   const totalChanges = dryResult.files.reduce(
     (count, file) =>
       count +
-      file.occurrences.filter(
-        (occurrence) => occurrence.matched !== occurrence.replacement,
-      ).length,
+      file.occurrences.filter((occurrence) => occurrence.matched !== occurrence.replacement).length,
     0,
   );
 
-  let interactivePrompt: Awaited<
-    ReturnType<typeof createTerminalInteractiveDecider>
-  > | null = null;
+  let interactivePrompt: Awaited<ReturnType<typeof createTerminalInteractiveDecider>> | null = null;
   const decider =
     interactiveDecider ??
-    (
-      (interactivePrompt = await createTerminalInteractiveDecider(noColor)),
-      interactivePrompt.decider
-    );
+    ((interactivePrompt = await createTerminalInteractiveDecider(noColor)),
+    interactivePrompt.decider);
   const selectedByFile = new Map<string, SpatchOccurrence[]>();
   let applyAll = false;
   let stop = false;
@@ -248,12 +228,10 @@ function applySelectedOccurrences(
   return parts.join("");
 }
 
-async function createTerminalInteractiveDecider(noColor: boolean): Promise<
-  {
-    decider: InteractiveDecider;
-    close: () => void;
-  }
-> {
+async function createTerminalInteractiveDecider(noColor: boolean): Promise<{
+  decider: InteractiveDecider;
+  close: () => void;
+}> {
   const chalkInstance = buildChalk({
     color: processStdout.isTTY && !noColor,
   });
@@ -322,9 +300,7 @@ function formatInteractiveChangeBlock(
       useColor ? chalkInstance.green(`+${line}`) : `+${line}`,
     ),
     useColor
-      ? chalkInstance.gray(
-          "Actions: [y] apply · [n] skip · [a] apply remaining · [q] quit",
-        )
+      ? chalkInstance.gray("Actions: [y] apply · [n] skip · [a] apply remaining · [q] quit")
       : "Actions: [y] apply · [n] skip · [a] apply remaining · [q] quit",
   ];
 
@@ -392,10 +368,7 @@ async function resolveInteractiveFilePath(
     return file;
   }
 
-  const candidates = [
-    path.resolve(options.cwd, file),
-    path.resolve(options.scope, file),
-  ];
+  const candidates = [path.resolve(options.cwd, file), path.resolve(options.scope, file)];
 
   for (const candidate of candidates) {
     try {
