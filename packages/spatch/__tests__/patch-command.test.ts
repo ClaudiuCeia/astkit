@@ -3,9 +3,29 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
-import { formatPatchOutput, runPatchCommand, validatePatchCommandFlags } from "../src/command.ts";
+import {
+  formatPatchOutput,
+  patchCommand,
+  runPatchCommand,
+  validatePatchCommandFlags,
+} from "../src/command.ts";
+import { patchCommandFlagParameters } from "../src/command/flags.ts";
 import { validateSelectedOccurrences } from "../src/command/interactive.ts";
 import type { SpatchResult } from "../src/types.ts";
+
+function resolvePatchCommandExecutor() {
+  return patchCommand
+    .loader()
+    .then(
+      (loaded) =>
+        loaded as (
+          this: { process: { stdout: { write(s: string): void } } },
+          flags: Record<string, unknown>,
+          patchInput: string,
+          scope?: string,
+        ) => Promise<void>,
+    );
+}
 
 test("runPatchCommand applies patch document string in scope", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
@@ -72,6 +92,12 @@ test("runPatchCommand can read patch document from stdin when patchInput is '-'"
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
+});
+
+test("runPatchCommand rejects empty patch document from stdin", async () => {
+  await expect(runPatchCommand("-", ".", {}, { readStdin: async () => "" })).rejects.toThrow(
+    "Patch document read from stdin was empty.",
+  );
 });
 
 test("runPatchCommand supports dryRun flag", async () => {
@@ -206,6 +232,66 @@ test("runPatchCommand interactive mode honors encoding for file IO", async () =>
   }
 });
 
+test("runPatchCommand interactive mode applies all remaining after 'all' choice", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const first = 1;\nconst second = 2;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    let calls = 0;
+    const result = await runPatchCommand(
+      patch,
+      workspace,
+      { interactive: true, cwd: workspace },
+      {
+        interactiveDecider: async () => {
+          calls += 1;
+          return "all";
+        },
+      },
+    );
+
+    expect(calls).toBe(1);
+    expect(result.totalMatches).toBe(2);
+    expect(result.totalReplacements).toBe(2);
+    expect(result.filesChanged).toBe(1);
+    expect(await readFile(target, "utf8")).toBe("let first = 1;\nlet second = 2;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive mode stops on 'quit' without applying changes", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    const original = "const first = 1;\nconst second = 2;\n";
+    await writeFile(target, original, "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand(
+      patch,
+      workspace,
+      { interactive: true, cwd: workspace },
+      {
+        interactiveDecider: async () => "quit",
+      },
+    );
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.totalReplacements).toBe(0);
+    expect(result.filesChanged).toBe(0);
+    expect(await readFile(target, "utf8")).toBe(original);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand interactive aborts when file changes before apply and avoids partial writes", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
@@ -240,6 +326,97 @@ test("runPatchCommand interactive aborts when file changes before apply and avoi
     // No partial apply should happen on other files.
     expect(await readFile(firstFile, "utf8")).toBe("const first = 1;\n");
     expect(await readFile(secondFile, "utf8")).toBe(externallyMutatedSecond);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive resolves file-scoped targets without cwd collisions", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const cwd = path.join(workspace, "cwd");
+    const scopeFile = path.join(workspace, "target.ts");
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await mkdir(cwd, { recursive: true });
+
+    const cwdFile = path.join(cwd, "target.ts");
+    const original = "const value = 1;\n";
+    await writeFile(cwdFile, original, "utf8");
+    await writeFile(scopeFile, original, "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand(
+      patch,
+      scopeFile,
+      { interactive: true, cwd },
+      {
+        interactiveDecider: async () => "yes",
+      },
+    );
+
+    expect(result.filesChanged).toBe(1);
+    expect(result.totalReplacements).toBe(1);
+    expect(await readFile(cwdFile, "utf8")).toBe(original);
+    expect(await readFile(scopeFile, "utf8")).toBe("let value = 1;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive fails when target file disappears after selection", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      runPatchCommand(
+        patch,
+        workspace,
+        { interactive: true, cwd: workspace },
+        {
+          interactiveDecider: async () => {
+            await rm(target, { force: true });
+            return "yes";
+          },
+        },
+      ),
+    ).rejects.toThrow("Unable to resolve interactive patch target file");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive rejects ambiguous target resolution within scope", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const cwd = path.join(workspace, "subdir");
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await mkdir(cwd, { recursive: true });
+
+    const scopeMatch = path.join(workspace, "sample.ts");
+    const cwdShadow = path.join(cwd, "sample.ts");
+    await writeFile(scopeMatch, "const value = 1;\n", "utf8");
+    await writeFile(cwdShadow, "// shadow file\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      runPatchCommand(
+        patch,
+        workspace,
+        { interactive: true, cwd },
+        {
+          interactiveDecider: async () => "yes",
+        },
+      ),
+    ).rejects.toThrow("Ambiguous interactive patch target file");
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -291,6 +468,30 @@ test("validatePatchCommandFlags rejects --interactive with --check", () => {
   expect(() => validatePatchCommandFlags({ interactive: true, check: true })).toThrow(
     "Cannot combine --interactive with --check.",
   );
+});
+
+test("runPatchCommand interactive mode requires TTY when no custom decider is provided", async () => {
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    return;
+  }
+
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      runPatchCommand(patch, workspace, {
+        interactive: true,
+        cwd: workspace,
+      }),
+    ).rejects.toThrow("Interactive mode requires a TTY stdin/stdout.");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
 
 test("validateSelectedOccurrences rejects overlapping spans", () => {
@@ -347,6 +548,54 @@ test("validateSelectedOccurrences accepts non-overlapping spans", () => {
   ).not.toThrow();
 });
 
+test("validateSelectedOccurrences rejects out-of-bounds spans", () => {
+  const source = "const a = 1;\n";
+
+  expect(() =>
+    validateSelectedOccurrences("sample.ts", source, [
+      {
+        start: 0,
+        end: source.length + 1,
+        line: 1,
+        character: 1,
+        matched: source,
+        replacement: source,
+        captures: {},
+      },
+    ]),
+  ).toThrow("File changed during interactive patch selection");
+});
+
+test("validateSelectedOccurrences rejects stale matched content", () => {
+  const source = "const a = 1;\n";
+
+  expect(() =>
+    validateSelectedOccurrences("sample.ts", source, [
+      {
+        start: 0,
+        end: source.length,
+        line: 1,
+        character: 1,
+        matched: "let a = 1;\n",
+        replacement: "let a = 1;\n",
+        captures: {},
+      },
+    ]),
+  ).toThrow("File changed during interactive patch selection");
+});
+
+test("patchCommand flag parsers validate concurrency and verbose levels", () => {
+  expect(() => patchCommandFlagParameters.concurrency.parse("0")).toThrow(
+    "--concurrency must be a positive number",
+  );
+  expect(() => patchCommandFlagParameters.verbose.parse("-1")).toThrow(
+    "--verbose must be a non-negative number",
+  );
+
+  expect(patchCommandFlagParameters.concurrency.parse("3.8")).toBe(3);
+  expect(patchCommandFlagParameters.verbose.parse("2.9")).toBe(2);
+});
+
 test("runPatchCommand interactive mode forwards concurrency and verbose logger", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
@@ -375,11 +624,13 @@ test("runPatchCommand interactive mode forwards concurrency and verbose logger",
 });
 
 test("runPatchCommand interactive resolves scoped files before cwd collisions", async () => {
-  const cwd = await mkdtemp(path.join(tmpdir(), "patch-command-cwd-"));
-  const external = await mkdtemp(path.join(tmpdir(), "patch-command-scope-"));
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
   try {
-    const scopeDir = path.join(external, "src");
+    const cwd = path.join(workspace, "cwd");
+    const scopeDir = path.join(workspace, "external", "src");
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await mkdir(cwd, { recursive: true });
     await mkdir(scopeDir, { recursive: true });
 
     const cwdFile = path.join(cwd, "sample.ts");
@@ -405,8 +656,7 @@ test("runPatchCommand interactive resolves scoped files before cwd collisions", 
     expect(await readFile(cwdFile, "utf8")).toBe(original);
     expect(await readFile(scopedFile, "utf8")).toBe("let value = 1;\n");
   } finally {
-    await rm(cwd, { recursive: true, force: true });
-    await rm(external, { recursive: true, force: true });
+    await rm(workspace, { recursive: true, force: true });
   }
 });
 
@@ -571,6 +821,101 @@ test("formatPatchOutput uses logical line counts for newline-terminated chunks",
   expect(output).not.toContain("\n+\n");
 });
 
+test("patchCommand loader writes compact text output in process", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const execute = await resolvePatchCommandExecutor();
+    let stdoutText = "";
+    await execute.call(
+      {
+        process: {
+          stdout: {
+            write(s: string) {
+              stdoutText += s;
+            },
+          },
+        },
+      },
+      { cwd: workspace },
+      patch,
+      workspace,
+    );
+
+    expect(stdoutText).toContain("diff --git");
+    expect(stdoutText).toContain("1 file changed, 1 replacement");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchCommand loader writes JSON output and passes --check when no replacements are needed", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    const noOpPatch = ["-const :[name] = :[value];", "+const :[name] = :[value];"].join("\n");
+
+    const execute = await resolvePatchCommandExecutor();
+    let stdoutText = "";
+    await execute.call(
+      {
+        process: {
+          stdout: {
+            write(s: string) {
+              stdoutText += s;
+            },
+          },
+        },
+      },
+      { cwd: workspace, json: true, check: true },
+      noOpPatch,
+      workspace,
+    );
+
+    const payload = JSON.parse(stdoutText) as SpatchResult;
+    expect(payload.totalReplacements).toBe(0);
+    expect(payload.filesChanged).toBe(0);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchCommand loader throws --check error in process when replacements are needed", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+    const execute = await resolvePatchCommandExecutor();
+
+    await expect(
+      execute.call(
+        {
+          process: {
+            stdout: {
+              write() {
+                // Ignore captured output for check-mode error path.
+              },
+            },
+          },
+        },
+        { cwd: workspace, check: true },
+        patch,
+        workspace,
+      ),
+    ).rejects.toThrow("Check failed");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("cli --check exits non-zero when replacements would be made", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
@@ -602,6 +947,43 @@ test("cli --check exits non-zero when replacements would be made", async () => {
 
     expect(cli.exitCode).toBe(1);
     expect(new TextDecoder().decode(cli.stderr)).toContain("Check failed");
+    expect(await readFile(target, "utf8")).toBe("const value = 1;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("cli --check exits zero when no replacements are needed", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    const patchFile = path.join(workspace, "rule.spatch");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    await writeFile(
+      patchFile,
+      ["-const :[name] = :[value];", "+const :[name] = :[value];", ""].join("\n"),
+      "utf8",
+    );
+
+    const cli = Bun.spawnSync({
+      cmd: [
+        "bun",
+        "run",
+        "packages/spatch/src/cli.ts",
+        patchFile,
+        workspace,
+        "--check",
+        "--cwd",
+        workspace,
+      ],
+      cwd: process.cwd(),
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    expect(cli.exitCode).toBe(0);
+    expect(new TextDecoder().decode(cli.stderr)).toBe("");
     expect(await readFile(target, "utf8")).toBe("const value = 1;\n");
   } finally {
     await rm(workspace, { recursive: true, force: true });
