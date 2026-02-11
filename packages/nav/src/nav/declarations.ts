@@ -4,6 +4,7 @@ import { buildCommand } from "@stricli/core";
 import chalk, { Chalk, type ChalkInstance } from "chalk";
 import {
   assertPathWithinWorkspaceBoundary,
+  createWorkspaceBoundary,
   createService,
   fromPosition,
   relativePath,
@@ -688,8 +689,9 @@ function collapseWhitespace(text: string): string {
 
 export function getDeclarations(filePath: string): DeclarationsOutput {
   const cwd = path.resolve(process.cwd());
+  const boundary = createWorkspaceBoundary(cwd);
   const resolved = path.resolve(cwd, filePath);
-  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  assertPathWithinWorkspaceBoundary(boundary, resolved, "File path");
   const { program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);

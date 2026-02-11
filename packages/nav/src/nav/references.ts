@@ -3,7 +3,9 @@ import { buildCommand } from "@stricli/core";
 import { parseFilePosition, type FilePosition } from "./location.ts";
 import {
   assertPathWithinWorkspaceBoundary,
+  createWorkspaceBoundary,
   createService,
+  isPathWithinWorkspaceBoundary,
   toPosition,
   fromPosition,
   relativePath,
@@ -25,8 +27,9 @@ interface ReferencesOutput {
 
 export function getReferences(filePath: string, line: number, character: number): ReferencesOutput {
   const cwd = path.resolve(process.cwd());
+  const boundary = createWorkspaceBoundary(cwd);
   const resolved = path.resolve(cwd, filePath);
-  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  assertPathWithinWorkspaceBoundary(boundary, resolved, "File path");
   const { service, program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);
@@ -56,7 +59,7 @@ export function getReferences(filePath: string, line: number, character: number)
   const defFile = firstGroup.definition.fileName;
   const defSourceFile = program.getSourceFile(defFile);
   let definition: ReferencesOutput["definition"] = null;
-  if (defSourceFile) {
+  if (defSourceFile && isPathWithinWorkspaceBoundary(boundary, defFile)) {
     const defPos = fromPosition(defSourceFile, defSpan.start);
     definition = {
       file: relativePath(projectRoot, defFile),
@@ -70,7 +73,7 @@ export function getReferences(filePath: string, line: number, character: number)
   for (const group of refSymbols) {
     for (const ref of group.references) {
       const refSourceFile = program.getSourceFile(ref.fileName);
-      if (!refSourceFile) continue;
+      if (!refSourceFile || !isPathWithinWorkspaceBoundary(boundary, ref.fileName)) continue;
 
       const refPos = fromPosition(refSourceFile, ref.textSpan.start);
       references.push({

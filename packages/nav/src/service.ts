@@ -2,6 +2,12 @@ import { realpathSync, statSync } from "node:fs";
 import ts from "typescript";
 import path from "node:path";
 
+export type WorkspaceBoundary = {
+  cwd: string;
+  repoRoot: string | null;
+  canonicalBoundary: string;
+};
+
 export interface Service {
   service: ts.LanguageService;
   program: ts.Program;
@@ -13,13 +19,16 @@ export function createService(
   targetFile?: string | readonly string[],
 ): Service {
   const cwd = path.resolve(projectDir);
-  const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists);
+  const boundary = createWorkspaceBoundary(cwd);
+  const configPath = ts.findConfigFile(cwd, ts.sys.fileExists);
+  const configPathWithinBoundary =
+    typeof configPath === "string" && isPathWithinWorkspaceBoundary(boundary, configPath);
 
   let compilerOptions: ts.CompilerOptions;
   let fileNames: string[];
   let projectRoot: string;
 
-  if (configPath) {
+  if (configPathWithinBoundary && configPath) {
     const { config, error } = ts.readConfigFile(configPath, ts.sys.readFile);
     if (error) {
       throw new Error(
@@ -29,7 +38,9 @@ export function createService(
     projectRoot = path.dirname(configPath);
     const parsed = ts.parseJsonConfigFileContent(config, ts.sys, projectRoot);
     compilerOptions = parsed.options;
-    fileNames = parsed.fileNames;
+    fileNames = parsed.fileNames
+      .map((fileName) => path.resolve(projectRoot, fileName))
+      .filter((fileName) => isPathWithinWorkspaceBoundary(boundary, fileName));
   } else {
     compilerOptions = ts.getDefaultCompilerOptions();
     fileNames = [];
@@ -40,7 +51,7 @@ export function createService(
   const targetFiles = normalizeTargetFiles(targetFile);
   for (const requestedFile of targetFiles) {
     const resolved = path.resolve(cwd, requestedFile);
-    assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+    assertPathWithinWorkspaceBoundary(boundary, resolved, "File path");
     if (!fileNames.includes(resolved)) {
       fileNames.push(resolved);
     }
@@ -102,26 +113,45 @@ export function relativePath(projectRoot: string, filePath: string): string {
 }
 
 export function assertPathWithinWorkspaceBoundary(
-  cwd: string,
+  boundaryOrCwd: WorkspaceBoundary | string,
   targetPath: string,
   label: string,
 ): void {
-  const resolvedCwd = path.resolve(cwd);
+  const boundary =
+    typeof boundaryOrCwd === "string" ? createWorkspaceBoundary(boundaryOrCwd) : boundaryOrCwd;
   const resolvedTarget = path.resolve(targetPath);
-  const repoRoot = findNearestGitRepoRoot(resolvedCwd);
-  const boundary = repoRoot ?? resolvedCwd;
-  const canonicalBoundary = resolveCanonicalPath(boundary);
   const canonicalTarget = resolveCanonicalPath(resolvedTarget);
-  if (isPathWithinBase(canonicalBoundary, canonicalTarget)) {
+  if (isPathWithinBase(boundary.canonicalBoundary, canonicalTarget)) {
     return;
   }
 
-  if (repoRoot) {
+  if (boundary.repoRoot) {
     throw new Error(
-      `${label} resolves outside repository root: path=${resolvedTarget} repoRoot=${repoRoot}.`,
+      `${label} resolves outside repository root: path=${resolvedTarget} repoRoot=${boundary.repoRoot}.`,
     );
   }
-  throw new Error(`${label} resolves outside cwd: path=${resolvedTarget} cwd=${resolvedCwd}.`);
+  throw new Error(`${label} resolves outside cwd: path=${resolvedTarget} cwd=${boundary.cwd}.`);
+}
+
+export function createWorkspaceBoundary(cwd: string): WorkspaceBoundary {
+  const resolvedCwd = path.resolve(cwd);
+  const repoRoot = findNearestGitRepoRoot(resolvedCwd);
+  const boundary = repoRoot ?? resolvedCwd;
+  return {
+    cwd: resolvedCwd,
+    repoRoot,
+    canonicalBoundary: resolveCanonicalPath(boundary),
+  };
+}
+
+export function isPathWithinWorkspaceBoundary(
+  boundaryOrCwd: WorkspaceBoundary | string,
+  targetPath: string,
+): boolean {
+  const boundary =
+    typeof boundaryOrCwd === "string" ? createWorkspaceBoundary(boundaryOrCwd) : boundaryOrCwd;
+  const canonicalTarget = resolveCanonicalPath(path.resolve(targetPath));
+  return isPathWithinBase(boundary.canonicalBoundary, canonicalTarget);
 }
 
 function findNearestGitRepoRoot(startDirectory: string): string | null {

@@ -8,7 +8,9 @@ import {
 import {
   assertPathWithinWorkspaceBoundary,
   createService,
+  createWorkspaceBoundary,
   fromPosition,
+  isPathWithinWorkspaceBoundary,
   relativePath,
 } from "../service.ts";
 
@@ -45,9 +47,10 @@ export type CodeRankResult = {
 
 export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankResult> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
+  const boundary = createWorkspaceBoundary(cwd);
   const scope = options.scope ?? ".";
   const resolvedScope = path.resolve(cwd, scope);
-  assertPathWithinWorkspaceBoundary(cwd, resolvedScope, "Scope");
+  assertPathWithinWorkspaceBoundary(boundary, resolvedScope, "Scope");
   const files = await collectPatchableFiles({
     cwd,
     scope,
@@ -101,6 +104,7 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
         service.findReferences(declarationSourceFile.fileName, declarationStart),
         declarationSourceFile.fileName,
         projectRoot,
+        boundary,
       );
       const pos = fromPosition(declarationSourceFile, declarationStart);
       symbols.push({
@@ -146,6 +150,7 @@ function collectReferenceStats(
   references: readonly ts.ReferencedSymbol[] | undefined,
   declarationFile: string,
   projectRoot: string,
+  boundary: ReturnType<typeof createWorkspaceBoundary>,
 ): ReferenceStats {
   if (!references || references.length === 0) {
     return {
@@ -170,6 +175,9 @@ function collectReferenceStats(
         continue;
       }
       seenReferences.add(key);
+      if (!isPathWithinWorkspaceBoundary(boundary, reference.fileName)) {
+        continue;
+      }
 
       if (reference.isDefinition) {
         continue;

@@ -1,4 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { createService, toPosition, fromPosition, relativePath } from "../src/service.ts";
 
@@ -73,4 +75,40 @@ test("toPosition and fromPosition round-trip", () => {
 test("relativePath computes correct relative path", () => {
   const result = relativePath("/home/user/project", "/home/user/project/src/foo.ts");
   expect(result).toBe("src/foo.ts");
+});
+
+test("createService excludes tsconfig includes that resolve outside workspace boundary", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "nav-service-boundary-"));
+  const workspace = path.join(root, "workspace");
+  const outsideFile = path.join(root, "outside.ts");
+
+  try {
+    await mkdir(workspace, { recursive: true });
+    await mkdir(path.join(workspace, ".git"));
+    await writeFile(outsideFile, "export const outside = 1;\n", "utf8");
+    await writeFile(path.join(workspace, "inside.ts"), "export const inside = 1;\n", "utf8");
+    await writeFile(
+      path.join(workspace, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            module: "ESNext",
+            moduleResolution: "Bundler",
+            target: "ESNext",
+            strict: true,
+          },
+          include: ["**/*.ts", "../outside.ts"],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const { program } = createService(workspace);
+    expect(program.getSourceFile(path.resolve(workspace, "inside.ts"))).toBeDefined();
+    expect(program.getSourceFile(outsideFile)).toBeUndefined();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

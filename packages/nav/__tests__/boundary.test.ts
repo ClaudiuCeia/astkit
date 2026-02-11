@@ -67,6 +67,22 @@ test("code-rank rejects scope outside cwd when no git repository root exists", a
   ).rejects.toThrow("outside cwd");
 });
 
+test("nav commands do not leak references/definitions to tsconfig-included files outside boundary", async () => {
+  const workspace = await createTsconfigIncludeEscapeWorkspace();
+  process.chdir(workspace.cwd);
+
+  const definitionResult = getDefinition("main.ts", 1, 10);
+  expect(definitionResult.definitions).toEqual([]);
+
+  const referencesResult = getReferences("main.ts", 1, 10);
+  if (referencesResult.definition) {
+    expect(referencesResult.definition.file.startsWith("..")).toBeFalse();
+  }
+  expect(
+    referencesResult.references.every((reference) => !reference.file.startsWith("..")),
+  ).toBeTrue();
+});
+
 async function createBoundaryWorkspace(options: { withGit: boolean }): Promise<{
   cwd: string;
   outsideFile: string;
@@ -104,4 +120,42 @@ async function createBoundaryWorkspace(options: { withGit: boolean }): Promise<{
   await writeFile(outsideFile, "export const outside = 1;\n", "utf8");
 
   return { cwd, outsideFile };
+}
+
+async function createTsconfigIncludeEscapeWorkspace(): Promise<{
+  cwd: string;
+}> {
+  const root = await mkdtemp(path.join(tmpdir(), "nav-boundary-"));
+  tempWorkspaces.push(root);
+
+  const cwd = path.join(root, "workspace");
+  await mkdir(cwd, { recursive: true });
+  await mkdir(path.join(cwd, ".git"));
+
+  const outsideFile = path.join(root, "outside.ts");
+  await writeFile(outsideFile, "export const TOP_SECRET = 1;\n", "utf8");
+  await writeFile(
+    path.join(cwd, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          module: "ESNext",
+          moduleResolution: "Bundler",
+          target: "ESNext",
+          strict: true,
+        },
+        include: ["**/*.ts", "../outside.ts"],
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+  await writeFile(
+    path.join(cwd, "main.ts"),
+    'import { TOP_SECRET } from "../outside.ts";\nexport const value = TOP_SECRET;\n',
+    "utf8",
+  );
+
+  return { cwd };
 }

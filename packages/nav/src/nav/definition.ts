@@ -3,7 +3,9 @@ import { buildCommand } from "@stricli/core";
 import { parseFilePosition, type FilePosition } from "./location.ts";
 import {
   assertPathWithinWorkspaceBoundary,
+  createWorkspaceBoundary,
   createService,
+  isPathWithinWorkspaceBoundary,
   toPosition,
   fromPosition,
   relativePath,
@@ -24,8 +26,9 @@ interface DefinitionOutput {
 
 export function getDefinition(filePath: string, line: number, character: number): DefinitionOutput {
   const cwd = path.resolve(process.cwd());
+  const boundary = createWorkspaceBoundary(cwd);
   const resolved = path.resolve(cwd, filePath);
-  assertPathWithinWorkspaceBoundary(cwd, resolved, "File path");
+  assertPathWithinWorkspaceBoundary(boundary, resolved, "File path");
   const { service, program, projectRoot } = createService(cwd, resolved);
 
   const sourceFile = program.getSourceFile(resolved);
@@ -49,23 +52,25 @@ export function getDefinition(filePath: string, line: number, character: number)
   }
 
   const symbol = defs[0]!.name || "<unknown>";
-  const definitions: DefinitionLocation[] = defs.map((def) => {
-    const defSourceFile = program.getSourceFile(def.fileName);
-    let defLine = 1;
-    let defChar = 1;
-    if (defSourceFile) {
-      const lc = fromPosition(defSourceFile, def.textSpan.start);
-      defLine = lc.line;
-      defChar = lc.character;
-    }
-    return {
-      file: relativePath(projectRoot, def.fileName),
-      line: defLine,
-      character: defChar,
-      kind: def.kind,
-      containerName: def.containerName || "",
-    };
-  });
+  const definitions: DefinitionLocation[] = defs
+    .filter((def) => isPathWithinWorkspaceBoundary(boundary, def.fileName))
+    .map((def) => {
+      const defSourceFile = program.getSourceFile(def.fileName);
+      let defLine = 1;
+      let defChar = 1;
+      if (defSourceFile) {
+        const lc = fromPosition(defSourceFile, def.textSpan.start);
+        defLine = lc.line;
+        defChar = lc.character;
+      }
+      return {
+        file: relativePath(projectRoot, def.fileName),
+        line: defLine,
+        character: defChar,
+        kind: def.kind,
+        containerName: def.containerName || "",
+      };
+    });
 
   return { symbol, definitions };
 }
