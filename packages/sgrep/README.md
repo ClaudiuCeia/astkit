@@ -66,6 +66,12 @@ Repeated named holes enforce equality:
 
 Matches `foo + foo`, not `foo + bar`.
 
+Regex-constrained holes intentionally use a safe subset:
+
+- max regex constraint length: `256`
+- disallowed constructs: lookarounds, backreferences, nested quantified groups
+- constrained captures longer than `2048` characters are rejected
+
 Example with variadic wildcard:
 
 ```text

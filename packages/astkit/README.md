@@ -329,6 +329,12 @@ This matches `foo + foo` but not `foo + bar`.
 
 Hole captures are structurally balanced (brackets/strings/comments), which helps avoid malformed partial matches.
 
+Regex-constrained holes intentionally use a safe subset:
+
+- max regex constraint length: `256`
+- disallowed constructs: lookarounds, backreferences, nested quantified groups
+- constrained captures longer than `2048` characters are rejected
+
 ## Output Examples
 
 Default compact `search` output:

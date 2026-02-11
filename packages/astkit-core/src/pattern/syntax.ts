@@ -24,6 +24,7 @@ import type {
 } from "./types.ts";
 
 const HOLE_INNER_NAME_PATTERN = /(?:[A-Za-z_][A-Za-z0-9_]*|_)/;
+const MAX_HOLE_REGEX_CONSTRAINT_LENGTH = 256;
 
 type RawHoleToken = {
   kind: "hole";
@@ -185,6 +186,8 @@ function resolveRawToken(token: RawTemplateToken, nextEllipsisIndex: () => numbe
     } satisfies HoleToken;
   }
 
+  validateHoleRegexConstraint(token.name, token.constraintSource);
+
   try {
     return {
       kind: "hole",
@@ -197,6 +200,151 @@ function resolveRawToken(token: RawTemplateToken, nextEllipsisIndex: () => numbe
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid regex constraint for hole "${token.name}": ${message}`);
   }
+}
+
+function validateHoleRegexConstraint(name: string, source: string): void {
+  if (source.length > MAX_HOLE_REGEX_CONSTRAINT_LENGTH) {
+    throw new Error(
+      `Regex constraint for hole "${name}" exceeds ${MAX_HOLE_REGEX_CONSTRAINT_LENGTH} characters.`,
+    );
+  }
+
+  const scan = scanRegexSafety(source);
+  if (!scan.safe) {
+    throw new Error(`Unsafe regex constraint for hole "${name}": ${scan.reason}`);
+  }
+}
+
+function scanRegexSafety(source: string): { safe: true } | { safe: false; reason: string } {
+  type GroupState = { containsQuantifier: boolean };
+  const groups: GroupState[] = [];
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (!char) {
+      continue;
+    }
+
+    if (char === "\\") {
+      const escaped = source[index + 1];
+      if (!escaped) {
+        break;
+      }
+      if (/[1-9]/.test(escaped)) {
+        return {
+          safe: false,
+          reason: "backreferences (for example \\1) are not allowed",
+        };
+      }
+      if (escaped === "k" && source[index + 2] === "<") {
+        return {
+          safe: false,
+          reason: "named backreferences (for example \\k<name>) are not allowed",
+        };
+      }
+      index += 1;
+      continue;
+    }
+
+    if (char === "[") {
+      index = skipCharacterClass(source, index);
+      continue;
+    }
+
+    if (char === "(") {
+      if (
+        source.startsWith("(?=", index) ||
+        source.startsWith("(?!", index) ||
+        source.startsWith("(?<=", index) ||
+        source.startsWith("(?<!", index)
+      ) {
+        return {
+          safe: false,
+          reason: "lookaround assertions are not allowed",
+        };
+      }
+      groups.push({ containsQuantifier: false });
+      continue;
+    }
+
+    if (char === ")") {
+      const closed = groups.pop();
+      if (!closed) {
+        continue;
+      }
+
+      const quantifierLength = readQuantifierLength(source, index + 1);
+      if (quantifierLength > 0 && closed.containsQuantifier) {
+        return {
+          safe: false,
+          reason: "nested quantifiers in grouped expressions are not allowed",
+        };
+      }
+      if (closed.containsQuantifier) {
+        const parent = groups[groups.length - 1];
+        if (parent) {
+          parent.containsQuantifier = true;
+        }
+      } else if (quantifierLength > 0) {
+        const parent = groups[groups.length - 1];
+        if (parent) {
+          parent.containsQuantifier = true;
+        }
+      }
+      continue;
+    }
+
+    const quantifierLength = readQuantifierLength(source, index);
+    if (quantifierLength > 0) {
+      const current = groups[groups.length - 1];
+      if (current) {
+        current.containsQuantifier = true;
+      }
+      index += quantifierLength - 1;
+    }
+  }
+
+  return { safe: true };
+}
+
+function skipCharacterClass(source: string, fromIndex: number): number {
+  for (let index = fromIndex + 1; index < source.length; index += 1) {
+    const char = source[index];
+    if (!char) {
+      return source.length - 1;
+    }
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "]") {
+      return index;
+    }
+  }
+  return source.length - 1;
+}
+
+function readQuantifierLength(source: string, index: number): number {
+  const char = source[index];
+  if (!char) {
+    return 0;
+  }
+
+  if (char === "*" || char === "+" || char === "?") {
+    const lazy = source[index + 1] === "?" ? 2 : 1;
+    return lazy;
+  }
+
+  if (char !== "{") {
+    return 0;
+  }
+
+  const slice = source.slice(index);
+  const match = slice.match(/^\{(\d+)(,(\d+)?)?\}\??/);
+  if (!match) {
+    return 0;
+  }
+  return match[0].length;
 }
 
 function buildTemplateParseHint(source: string, baseError: string): string {

@@ -14,6 +14,8 @@ type MatchResult = {
   captures: Map<string, string>;
 };
 
+const MAX_CONSTRAINED_CAPTURE_LENGTH = 2048;
+
 export function findTemplateMatches(text: string, template: CompiledTemplate): TemplateMatch[] {
   const matches: TemplateMatch[] = [];
   const firstToken = template.tokens[0];
@@ -148,6 +150,9 @@ function captureHole(
   hole: HoleToken,
   value: string,
 ): Map<string, string> | null {
+  if (hole.constraintRegex && value.length > MAX_CONSTRAINED_CAPTURE_LENGTH) {
+    return null;
+  }
   if (hole.constraintRegex && !hole.constraintRegex.test(value)) {
     return null;
   }

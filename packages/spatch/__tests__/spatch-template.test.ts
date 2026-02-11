@@ -37,6 +37,22 @@ test("compileTemplate rejects invalid hole regex", () => {
   expect(() => compileTemplate("const :[name~(] = 1;")).toThrow();
 });
 
+test("compileTemplate rejects unsafe hole regex constructs", () => {
+  expect(() => compileTemplate("const :[name~([a-z]+)+] = 1;")).toThrow("nested quantifiers");
+  expect(() => compileTemplate("const :[name~([a-z]+)\\1] = 1;")).toThrow("backreferences");
+  expect(() => compileTemplate("const :[name~(?=foo)[a-z]+] = 1;")).toThrow("lookaround");
+});
+
+test("constraint regex matching rejects oversized captures", () => {
+  const template = compileTemplate("value(:[arg~[a-z]+]);");
+  const oversized = "a".repeat(2050);
+  const text = `value(${oversized});\n`;
+
+  const matches = findTemplateMatches(text, template);
+
+  expect(matches).toHaveLength(0);
+});
+
 test("compileTemplate rejects adjacent holes", () => {
   expect(() => compileTemplate(":[a]:[b]")).toThrow(
     "Adjacent holes are ambiguous. Add a literal delimiter between them.",
