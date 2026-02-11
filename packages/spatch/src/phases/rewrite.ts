@@ -33,15 +33,11 @@ export type RewritePhaseResult = {
 type LineEnding = "\n" | "\r\n";
 
 type RewritePerfStats = {
-  filesRead: number;
   readNs: bigint;
   matchNs: bigint;
   renderNs: bigint;
   applyNs: bigint;
   writeNs: bigint;
-  matchedFiles: number;
-  totalMatches: number;
-  totalReplacements: number;
 };
 
 export async function rewriteProject(
@@ -87,15 +83,11 @@ export async function rewriteProject(
 
   const slowFiles: Array<{ file: string; ms: number; matches: number; replacements: number }> = [];
   const stats: RewritePerfStats = {
-    filesRead: 0,
     readNs: 0n,
     matchNs: 0n,
     renderNs: 0n,
     applyNs: 0n,
     writeNs: 0n,
-    matchedFiles: 0,
-    totalMatches: 0,
-    totalReplacements: 0,
   };
   const rewriteStarted = verbose > 0 ? nowNs() : 0n;
   const results = await mapLimit(
@@ -164,8 +156,12 @@ export async function rewriteProject(
   }
 
   if (verbose > 0) {
+    const mode = dryRun ? "preview" : "apply";
+    const outcome = totalReplacements === 0 ? "no-op" : "rewrite";
+    const matchRate = files.length === 0 ? 0 : (filesMatched / files.length) * 100;
+    const changeRate = files.length === 0 ? 0 : (filesChanged / files.length) * 100;
     log(
-      `[spatch] summary filesScanned=${files.length} filesMatched=${filesMatched} filesChanged=${filesChanged} totalMatches=${totalMatches} totalReplacements=${totalReplacements}`,
+      `[spatch] summary mode=${mode} outcome=${outcome} flow=${files.length}->${filesMatched}->${filesChanged} rates=match:${matchRate.toFixed(1)}%,change:${changeRate.toFixed(1)}% totals=matches:${totalMatches},replacements:${totalReplacements}`,
     );
   }
 
@@ -204,7 +200,6 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
   const readStarted = input.stats ? nowNs() : 0n;
   const originalText = await readFile(input.filePath, input.encoding);
   if (input.stats) {
-    input.stats.filesRead += 1;
     input.stats.readNs += nowNs() - readStarted;
   }
 
@@ -261,12 +256,6 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
     if (input.stats) {
       input.stats.writeNs += nowNs() - writeStarted;
     }
-  }
-
-  if (input.stats) {
-    input.stats.matchedFiles += 1;
-    input.stats.totalMatches += matches.length;
-    input.stats.totalReplacements += replacementCount;
   }
 
   return {
