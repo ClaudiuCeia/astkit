@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
@@ -366,6 +366,42 @@ test("runPatchCommand interactive mode forwards concurrency and verbose logger",
     expect(logs.some((line) => line.includes("concurrency=3"))).toBe(true);
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive resolves scoped files before cwd collisions", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "patch-command-cwd-"));
+  const external = await mkdtemp(path.join(tmpdir(), "patch-command-scope-"));
+
+  try {
+    const scopeDir = path.join(external, "src");
+    await mkdir(scopeDir, { recursive: true });
+
+    const cwdFile = path.join(cwd, "sample.ts");
+    const scopedFile = path.join(scopeDir, "sample.ts");
+    const original = "const value = 1;\n";
+
+    await writeFile(cwdFile, original, "utf8");
+    await writeFile(scopedFile, original, "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand(
+      patch,
+      scopeDir,
+      { interactive: true, cwd },
+      {
+        interactiveDecider: async () => "yes",
+      },
+    );
+
+    expect(result.filesChanged).toBe(1);
+    expect(result.totalReplacements).toBe(1);
+    expect(await readFile(cwdFile, "utf8")).toBe(original);
+    expect(await readFile(scopedFile, "utf8")).toBe("let value = 1;\n");
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
   }
 });
 
