@@ -853,6 +853,39 @@ test("patchCommand loader writes compact text output in process", async () => {
   }
 });
 
+test("patchCommand loader uses command context stdout isTTY for color output", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const execute = await resolvePatchCommandExecutor();
+    let stdoutText = "";
+    await execute.call(
+      {
+        process: {
+          stdout: {
+            isTTY: true,
+            write(s: string) {
+              stdoutText += s;
+            },
+          },
+        },
+      },
+      { cwd: workspace },
+      patch,
+      workspace,
+    );
+
+    expect(stdoutText).toContain("diff --git");
+    expect(stdoutText).toContain("\u001b[");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("patchCommand loader writes JSON output and passes --check when no replacements are needed", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 

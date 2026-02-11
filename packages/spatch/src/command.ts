@@ -1,8 +1,4 @@
-import {
-  stderr as processStderr,
-  stdin as processStdin,
-  stdout as processStdout,
-} from "node:process";
+import { stderr as processStderr, stdin as processStdin } from "node:process";
 import { buildCommand } from "@stricli/core";
 import { resolveTextInput } from "@claudiu-ceia/astkit-core";
 import {
@@ -76,7 +72,7 @@ export async function runPatchCommand(
 
 export const patchCommand = buildCommand({
   async func(
-    this: { process: { stdout: { write(s: string): void } } },
+    this: { process: { stdout: { write(s: string): void; isTTY?: boolean } } },
     flags: PatchCommandFlags,
     patchInput: string,
     scope?: string,
@@ -89,7 +85,7 @@ export const patchCommand = buildCommand({
     }
 
     const output = formatPatchOutput(result, {
-      color: Boolean(processStdout.isTTY) && !(flags["no-color"] ?? false),
+      color: Boolean(this.process.stdout.isTTY) && !(flags["no-color"] ?? false),
     });
     this.process.stdout.write(`${output}\n`);
 
