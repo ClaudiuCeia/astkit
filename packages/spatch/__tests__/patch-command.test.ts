@@ -96,6 +96,28 @@ test("runPatchCommand supports dryRun flag", async () => {
   }
 });
 
+test("runPatchCommand supports check flag as dry-run guardrail", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    const original = "const value = 1;\n";
+    await writeFile(target, original, "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const result = await runPatchCommand(patch, workspace, { check: true });
+
+    expect(result.dryRun).toBe(true);
+    expect(result.totalReplacements).toBe(1);
+    expect(await readFile(target, "utf8")).toBe(original);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand interactive mode applies selected matches only", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
@@ -280,6 +302,12 @@ test("validatePatchCommandFlags rejects --interactive with --dry-run", () => {
   ).toThrow("Cannot combine --interactive with --dry-run.");
 });
 
+test("validatePatchCommandFlags rejects --interactive with --check", () => {
+  expect(() =>
+    validatePatchCommandFlags({ interactive: true, check: true }),
+  ).toThrow("Cannot combine --interactive with --check.");
+});
+
 test("runPatchCommand interactive mode forwards concurrency and verbose logger", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 
@@ -426,4 +454,39 @@ test("formatPatchOutput uses logical line counts for newline-terminated chunks",
   expect(output).toContain("@@ -3,1 +3,1 @@");
   expect(output).not.toContain("\n-\n");
   expect(output).not.toContain("\n+\n");
+});
+
+test("cli --check exits non-zero when replacements would be made", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    const patchFile = path.join(workspace, "rule.spatch");
+    await writeFile(target, "const value = 1;\n", "utf8");
+    await writeFile(
+      patchFile,
+      ["-const :[name] = :[value];", "+let :[name] = :[value];", ""].join("\n"),
+      "utf8",
+    );
+
+    const cli = Bun.spawnSync({
+      cmd: [
+        "bun",
+        "run",
+        "packages/spatch/src/cli.ts",
+        patchFile,
+        workspace,
+        "--check",
+      ],
+      cwd: process.cwd(),
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    expect(cli.exitCode).toBe(1);
+    expect(new TextDecoder().decode(cli.stderr)).toContain("Check failed");
+    expect(await readFile(target, "utf8")).toBe("const value = 1;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });

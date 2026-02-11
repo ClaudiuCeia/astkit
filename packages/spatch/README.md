@@ -14,9 +14,9 @@ You can pass the patch document either:
 ## CLI
 
 ```bash
-spatch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+spatch <patch-input> [scope] [--cwd <path>] [--dry-run] [--check] [--json] [--no-color] [--interactive]
 # or:
-astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--check] [--json] [--no-color] [--interactive]
 ```
 
 Examples:
@@ -33,6 +33,9 @@ spatch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 
 # preview only
 spatch rules/const-to-let.spatch src --dry-run
+
+# CI guardrail: fail if rewrite is needed
+spatch rules/const-to-let.spatch src --check
 
 # structured JSON output
 spatch rules/const-to-let.spatch src --json

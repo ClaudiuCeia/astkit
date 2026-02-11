@@ -78,7 +78,7 @@ export async function runPatchCommand(
 
   return patchProject(resolvedPatchInput, {
     ...patchOptions,
-    dryRun: flags["dry-run"] ?? false,
+    dryRun: (flags["dry-run"] ?? false) || (flags.check ?? false),
   });
 }
 
@@ -92,6 +92,7 @@ export const patchCommand = buildCommand({
     const result = await runPatchCommand(patchInput, scope, flags);
     if (flags.json ?? false) {
       this.process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      enforceCheckMode(flags, result);
       return;
     }
 
@@ -99,6 +100,8 @@ export const patchCommand = buildCommand({
       color: Boolean(processStdout.isTTY) && !(flags["no-color"] ?? false),
     });
     this.process.stdout.write(`${output}\n`);
+
+    enforceCheckMode(flags, result);
   },
   parameters: {
     flags: patchCommandFlagParameters,
@@ -123,6 +126,18 @@ export const patchCommand = buildCommand({
     brief: "Apply structural rewrite from a patch document",
   },
 });
+
+function enforceCheckMode(flags: PatchCommandFlags, result: SpatchResult): void {
+  if (!(flags.check ?? false)) {
+    return;
+  }
+
+  if (result.totalReplacements > 0) {
+    throw new Error(
+      `Check failed: ${result.totalReplacements} replacements would be applied in ${result.filesChanged} files.`,
+    );
+  }
+}
 
 async function resolvePatchInput(
   patchInput: string,

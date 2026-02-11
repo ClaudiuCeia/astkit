@@ -1,5 +1,6 @@
 export type PatchCommandFlags = {
   "dry-run"?: boolean;
+  check?: boolean;
   interactive?: boolean;
   json?: boolean;
   "no-color"?: boolean;
@@ -59,6 +60,12 @@ export const patchCommandFlagParameters = {
     withNegated: false,
     brief: "Preview changes without writing files",
   },
+  check: {
+    kind: "boolean" as const,
+    optional: true,
+    withNegated: false,
+    brief: "Exit non-zero if changes would be made (implies --dry-run)",
+  },
   cwd: {
     kind: "parsed" as const,
     optional: true,
@@ -71,5 +78,8 @@ export const patchCommandFlagParameters = {
 export function validatePatchCommandFlags(flags: PatchCommandFlags): void {
   if ((flags.interactive ?? false) && (flags["dry-run"] ?? false)) {
     throw new Error("Cannot combine --interactive with --dry-run.");
+  }
+  if ((flags.interactive ?? false) && (flags.check ?? false)) {
+    throw new Error("Cannot combine --interactive with --check.");
   }
 }
