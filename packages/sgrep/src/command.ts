@@ -46,13 +46,15 @@ export function formatSearchOutput(
   const lines: string[] = [];
 
   for (const file of result.files) {
-    lines.push(useColor ? chalkInstance.gray(`//${file.file}`) : `//${file.file}`);
+    const safeFile = escapeTerminalText(file.file);
+    lines.push(useColor ? chalkInstance.gray(`//${safeFile}`) : `//${safeFile}`);
     for (const match of file.matches) {
       const preview = buildMatchPreview(match.matched);
+      const safePreviewText = escapeTerminalText(preview.text);
       const linePrefix = useColor ? chalkInstance.gray(`${match.line}: `) : `${match.line}: `;
       const highlightedPreview = useColor
-        ? highlightCaptures(preview.text, match.captures, chalkInstance, captureColorMap)
-        : preview.text;
+        ? highlightCaptures(safePreviewText, match.captures, chalkInstance, captureColorMap)
+        : safePreviewText;
       const previewSuffix = preview.truncated
         ? useColor
           ? chalkInstance.gray(" ...")
@@ -180,7 +182,21 @@ function highlightCaptures(
 
 function toPreviewSearchValue(rawValue: string): string {
   const normalized = rawValue.replaceAll("\r\n", "\n");
-  return normalized.split("\n")[0] ?? "";
+  const firstLine = normalized.split("\n")[0] ?? "";
+  return escapeTerminalText(firstLine);
+}
+
+function escapeTerminalText(text: string): string {
+  let output = "";
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (code === 0x1b || code < 0x20 || code === 0x7f) {
+      output += `\\x${code.toString(16).padStart(2, "0")}`;
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function buildCaptureColorMap(result: SgrepResult): Map<string, number> {

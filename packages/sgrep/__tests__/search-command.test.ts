@@ -289,3 +289,39 @@ test("formatSearchOutput colors distinct variables with different colors", () =>
   expect(computeCode).toBe(fortyTwoCode);
   expect(fooCode).not.toBe(fortyTwoCode);
 });
+
+test("formatSearchOutput escapes terminal control sequences in paths and lines", () => {
+  const result: SgrepResult = {
+    scope: "/tmp/workspace/src",
+    pattern: "const :[name] = :[value];",
+    filesScanned: 1,
+    filesMatched: 1,
+    totalMatches: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/\u001b[31mevil.ts",
+        matchCount: 1,
+        matches: [
+          {
+            start: 0,
+            end: 18,
+            line: 1,
+            character: 1,
+            matched: 'const msg = "\u001b[2J";',
+            captures: {
+              name: "msg",
+              value: '"\u001b[2J"',
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatSearchOutput(result, { color: false });
+
+  expect(output).not.toContain("\u001b");
+  expect(output).toContain("//src/\\x1b[31mevil.ts");
+  expect(output).toContain('1: const msg = "\\x1b[2J";');
+});
