@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   compileReplacementTemplate,
@@ -67,7 +67,9 @@ export async function rewriteProject(
   const resolvedScope = path.resolve(cwd, scope);
   const repoRoot = await findNearestGitRepoRoot(cwd);
   const scopeBoundary = repoRoot ?? cwd;
-  if (!isPathWithinBase(scopeBoundary, resolvedScope)) {
+  const canonicalScopeBoundary = await resolveCanonicalPath(scopeBoundary);
+  const canonicalScope = await resolveCanonicalPath(resolvedScope);
+  if (!isPathWithinBase(canonicalScopeBoundary, canonicalScope)) {
     if (repoRoot) {
       throw new Error(
         `Scope resolves outside repository root: scope=${resolvedScope} repoRoot=${repoRoot}.`,
@@ -460,4 +462,19 @@ function applyLineEnding(text: string, lineEnding: LineEnding): string {
     return text;
   }
   return text.replaceAll("\n", "\r\n");
+}
+
+async function resolveCanonicalPath(filePath: string): Promise<string> {
+  try {
+    return await realpath(filePath);
+  } catch (error) {
+    if (isErrorWithCode(error) && error.code === "ENOENT") {
+      return path.resolve(filePath);
+    }
+    throw error;
+  }
+}
+
+function isErrorWithCode(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
 }
