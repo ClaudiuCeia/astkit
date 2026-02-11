@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { searchProject } from "../src/sgrep.ts";
@@ -160,6 +160,101 @@ test("searchProject accepts single-file scope", async () => {
     expect(result.totalMatches).toBe(1);
     expect(result.files[0]?.file).toBe("target.ts");
   } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("searchProject rejects scope outside nearest git repository root", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "sgrep-outside-"));
+
+  try {
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await writeFile(path.join(workspace, "inside.ts"), "const inside = 1;\n", "utf8");
+    await writeFile(path.join(outside, "outside.ts"), "const outside = 1;\n", "utf8");
+
+    await expect(
+      searchProject("const :[name] = :[value];", {
+        cwd: workspace,
+        scope: outside,
+      }),
+    ).rejects.toThrow("Scope resolves outside repository root");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("searchProject rejects symlink scope escaping nearest git repository root", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "sgrep-outside-"));
+
+  try {
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await writeFile(path.join(outside, "outside.ts"), "const outside = 1;\n", "utf8");
+    await symlink(outside, path.join(workspace, "leak"));
+
+    await expect(
+      searchProject("const :[name] = :[value];", {
+        cwd: workspace,
+        scope: "leak",
+      }),
+    ).rejects.toThrow("Scope resolves outside repository root");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("searchProject rejects scope outside cwd when git repository root is unavailable", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "sgrep-outside-"));
+
+  try {
+    const cwd = path.join(workspace, "sandbox");
+    await mkdir(cwd, { recursive: true });
+    await writeFile(path.join(workspace, "inside.ts"), "const inside = 1;\n", "utf8");
+    await writeFile(path.join(outside, "outside.ts"), "const outside = 1;\n", "utf8");
+
+    await expect(
+      searchProject("const :[name] = :[value];", {
+        cwd,
+        scope: outside,
+      }),
+    ).rejects.toThrow("Scope resolves outside cwd");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("searchProject surfaces non-ENOENT scope canonicalization errors", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+  const cwd = path.join(workspace, "cwd");
+  const restricted = path.join(cwd, "restricted");
+  const restrictedScope = path.join(restricted, "scope");
+
+  try {
+    await mkdir(restrictedScope, { recursive: true });
+    await writeFile(path.join(cwd, "sample.ts"), "const value = 1;\n", "utf8");
+    await chmod(restricted, 0o000);
+
+    await expect(
+      searchProject("const :[name] = :[value];", {
+        cwd,
+        scope: path.join("restricted", "scope"),
+      }),
+    ).rejects.toThrow(/EACCES|permission denied/);
+  } finally {
+    await chmod(restricted, 0o755).catch(() => undefined);
     await rm(workspace, { recursive: true, force: true });
   }
 });

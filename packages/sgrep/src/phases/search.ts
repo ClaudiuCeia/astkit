@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   compileTemplate,
@@ -46,6 +46,18 @@ export async function searchProjectFiles(
   const encoding = options.encoding ?? "utf8";
   const concurrency = options.concurrency ?? 8;
   const resolvedScope = path.resolve(cwd, scope);
+  const repoRoot = await findNearestGitRepoRoot(cwd);
+  const scopeBoundary = repoRoot ?? cwd;
+  const canonicalScopeBoundary = await resolveCanonicalPath(scopeBoundary);
+  const canonicalScope = await resolveCanonicalPath(resolvedScope);
+  if (!isPathWithinBase(canonicalScopeBoundary, canonicalScope)) {
+    if (repoRoot) {
+      throw new Error(
+        `Scope resolves outside repository root: scope=${resolvedScope} repoRoot=${repoRoot}.`,
+      );
+    }
+    throw new Error(`Scope resolves outside cwd: scope=${resolvedScope} cwd=${cwd}.`);
+  }
   const isomorphismsEnabled = options.isomorphisms ?? true;
   const compileStarted = verbose > 0 ? nowNs() : 0n;
   const compiledPatterns = compileSearchPatterns(search.pattern, isomorphismsEnabled);
@@ -252,4 +264,55 @@ function findFileMatches(
   return [...uniqueBySpan.values()].sort(
     (left, right) => left.start - right.start || left.end - right.end,
   );
+}
+
+async function findNearestGitRepoRoot(startDirectory: string): Promise<string | null> {
+  let current = path.resolve(startDirectory);
+
+  while (true) {
+    try {
+      await stat(path.join(current, ".git"));
+      return current;
+    } catch {
+      // Move upward to find nearest git root.
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+function isRelativeWithinBase(relativePath: string): boolean {
+  if (relativePath.length === 0) {
+    return true;
+  }
+
+  if (path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  return relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`);
+}
+
+function isPathWithinBase(basePath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(basePath, candidatePath);
+  return isRelativeWithinBase(relativePath);
+}
+
+async function resolveCanonicalPath(filePath: string): Promise<string> {
+  try {
+    return await realpath(filePath);
+  } catch (error) {
+    if (isErrorWithCode(error) && error.code === "ENOENT") {
+      return path.resolve(filePath);
+    }
+    throw error;
+  }
+}
+
+function isErrorWithCode(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
 }
