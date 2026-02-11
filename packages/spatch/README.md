@@ -25,6 +25,9 @@ Examples:
 # patch document from file
 spatch rules/const-to-let.spatch src --cwd /repo
 
+# patch document from stdin
+cat rules/const-to-let.spatch | spatch - src
+
 # inline patch document
 spatch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 

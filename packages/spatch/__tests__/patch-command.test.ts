@@ -51,6 +51,25 @@ test("runPatchCommand resolves patch document from file using cwd", async () => 
   }
 });
 
+test("runPatchCommand can read patch document from stdin when patchInput is '-'", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand("-", workspace, {}, { readStdin: async () => patch });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.filesChanged).toBe(1);
+    expect(await readFile(target, "utf8")).toBe("let value = 1;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand supports dryRun flag", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 

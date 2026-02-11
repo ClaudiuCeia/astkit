@@ -8,6 +8,7 @@ import {
 import { createInterface } from "node:readline/promises";
 import { buildCommand } from "@stricli/core";
 import chalk, { Chalk, type ChalkInstance } from "chalk";
+import { resolveTextInput } from "@claudiu-ceia/astkit-core";
 import { patchProject } from "./spatch.ts";
 import type {
   SpatchFileResult,
@@ -36,6 +37,11 @@ export type InteractiveContext = {
 
 export type RunPatchCommandOptions = {
   interactiveDecider?: (ctx: InteractiveContext) => Promise<InteractiveChoice>;
+  /**
+   * Used for testing / embedding. If omitted and patch input is "-", stdin will
+   * be read from the current process.
+   */
+  readStdin?: () => Promise<string>;
 };
 
 export async function runPatchCommand(
@@ -46,6 +52,14 @@ export async function runPatchCommand(
 ): Promise<SpatchResult> {
   const patchScope = scope ?? ".";
   const patchCwd = flags.cwd;
+  const resolvedPatchInput = await resolvePatchInput(
+    patchInput,
+    {
+      cwd: patchCwd,
+      encoding: "utf8",
+      readStdin: options.readStdin,
+    },
+  );
 
   if (flags.interactive ?? false) {
     if (flags["dry-run"] ?? false) {
@@ -53,7 +67,7 @@ export async function runPatchCommand(
     }
 
     return runInteractivePatchCommand(
-      patchInput,
+      resolvedPatchInput,
       patchScope,
       patchCwd,
       flags["no-color"] ?? false,
@@ -61,7 +75,7 @@ export async function runPatchCommand(
     );
   }
 
-  return patchProject(patchInput, {
+  return patchProject(resolvedPatchInput, {
     concurrency: flags.concurrency,
     cwd: patchCwd,
     dryRun: flags["dry-run"] ?? false,
@@ -403,6 +417,35 @@ async function runInteractivePatchCommand(
     elapsedMs: Date.now() - startedAt,
     files: fileResults,
   };
+}
+
+async function resolvePatchInput(
+  patchInput: string,
+  options: { cwd: string | undefined; encoding: BufferEncoding; readStdin?: () => Promise<string> },
+): Promise<string> {
+  if (patchInput !== "-") {
+    return await resolveTextInput(patchInput, { cwd: options.cwd, encoding: options.encoding });
+  }
+
+  const reader = options.readStdin ?? (() => readAllFromStdin(options.encoding));
+  const text = await reader();
+  if (text.length === 0) {
+    throw new Error("Patch document read from stdin was empty.");
+  }
+  return text;
+}
+
+async function readAllFromStdin(encoding: BufferEncoding): Promise<string> {
+  // Read raw patch document from stdin (e.g. `cat rule.spatch | spatch - src`).
+  // `node:process` stdin is a stream in both Node and Bun.
+  const stdin = processStdin;
+  stdin.setEncoding(encoding);
+
+  let text = "";
+  for await (const chunk of stdin) {
+    text += String(chunk);
+  }
+  return text;
 }
 
 function applySelectedOccurrences(
