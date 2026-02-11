@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -52,5 +52,40 @@ test("writeFileIfUnchangedAtomically rejects stale content", async () => {
     expect(await readFile(file, "utf8")).toBe(externallyMutatedText);
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("writeFileIfUnchangedAtomically cleans up temp file when rename fails", async () => {
+  const events: string[] = [];
+  mock.module("node:fs/promises", () => ({
+    readFile: async () => "const value = 1;\n",
+    stat: async () => ({ mode: 0o644 }),
+    writeFile: async () => {
+      events.push("write");
+    },
+    rename: async () => {
+      throw new Error("rename boom");
+    },
+    rm: async () => {
+      events.push("rm");
+    },
+  }));
+
+  try {
+    const module = await import(`../src/file-write.ts?rename-failure=${Date.now()}`);
+
+    await expect(
+      module.writeFileIfUnchangedAtomically({
+        filePath: "/tmp/example.ts",
+        originalText: "const value = 1;\n",
+        rewrittenText: "let value = 1;\n",
+        encoding: "utf8",
+        operationName: "non-interactive patch apply",
+      }),
+    ).rejects.toThrow("rename boom");
+
+    expect(events).toEqual(["write", "rm"]);
+  } finally {
+    mock.restore();
   }
 });

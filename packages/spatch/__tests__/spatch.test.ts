@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { patchProject } from "../src/spatch.ts";
@@ -200,6 +200,35 @@ test("patchProject rejects scope outside cwd when git repository root is unavail
   } finally {
     await rm(workspace, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("patchProject surfaces non-ENOENT scope canonicalization errors", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+  const cwd = path.join(workspace, "cwd");
+  const restricted = path.join(cwd, "restricted");
+  const restrictedScope = path.join(restricted, "scope");
+
+  try {
+    await mkdir(restrictedScope, { recursive: true });
+    await writeFile(path.join(cwd, "sample.ts"), "const value = 1;\n", "utf8");
+    await chmod(restricted, 0o000);
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      patchProject(patch, {
+        cwd,
+        scope: path.join("restricted", "scope"),
+      }),
+    ).rejects.toThrow(/EACCES|permission denied/);
+  } finally {
+    await chmod(restricted, 0o755).catch(() => undefined);
+    await rm(workspace, { recursive: true, force: true });
   }
 });
 
