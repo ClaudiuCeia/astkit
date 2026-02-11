@@ -1,20 +1,9 @@
 import { expect, test } from "bun:test";
-import {
-  compileTemplate,
-  findTemplateMatches,
-  renderTemplate,
-} from "../src/template.ts";
+import { compileTemplate, findTemplateMatches, renderTemplate } from "@claudiu-ceia/astkit-core";
 
 test("regex-constrained holes only match valid captures", () => {
-  const template = compileTemplate(
-    "const :[name~[a-z]+] = :[value~\\d+];",
-  );
-  const text = [
-    "const alpha = 123;",
-    "const Beta = 456;",
-    "const gamma = nope;",
-    "",
-  ].join("\n");
+  const template = compileTemplate("const :[name~[a-z]+] = :[value~\\d+];");
+  const text = ["const alpha = 123;", "const Beta = 456;", "const gamma = nope;", ""].join("\n");
 
   const matches = findTemplateMatches(text, template);
 
@@ -23,15 +12,8 @@ test("regex-constrained holes only match valid captures", () => {
 });
 
 test("repeated holes still enforce equality with regex constraints", () => {
-  const template = compileTemplate(
-    ":[x~[a-z_][a-z0-9_]*] + :[x];",
-  );
-  const text = [
-    "foo + foo;",
-    "foo + bar;",
-    "123 + 123;",
-    "",
-  ].join("\n");
+  const template = compileTemplate(":[x~[a-z_][a-z0-9_]*] + :[x];");
+  const text = ["foo + foo;", "foo + bar;", "123 + 123;", ""].join("\n");
 
   const matches = findTemplateMatches(text, template);
 
@@ -41,13 +23,7 @@ test("repeated holes still enforce equality with regex constraints", () => {
 
 test("structural balancing ignores delimiters in strings and comments", () => {
   const template = compileTemplate("run(:[argument]);");
-  const text = [
-    "run(foo(bar));",
-    "run((foo);",
-    'run(")");',
-    "run(/* ) */ value);",
-    "",
-  ].join("\n");
+  const text = ["run(foo(bar));", "run((foo);", 'run(")");', "run(/* ) */ value);", ""].join("\n");
 
   const matches = findTemplateMatches(text, template);
 
@@ -68,9 +44,7 @@ test("compileTemplate rejects adjacent holes", () => {
 });
 
 test("compileTemplate hints about escaping literals for unclosed holes", () => {
-  expect(() => compileTemplate("const :[name] = ':[value';")).toThrow(
-    "Hint:",
-  );
+  expect(() => compileTemplate("const :[name] = ':[value';")).toThrow("Hint:");
 });
 
 test("renderTemplate rejects unknown holes", () => {
@@ -80,24 +54,17 @@ test("renderTemplate rejects unknown holes", () => {
 });
 
 test("renderTemplate supports constrained placeholders in replacement", () => {
-  const rendered = renderTemplate(
-    "let :[name~[a-z]+] = Number(:[value~\\d+]);",
-    {
-      name: "alpha",
-      value: "42",
-    },
-  );
+  const rendered = renderTemplate("let :[name~[a-z]+] = Number(:[value~\\d+]);", {
+    name: "alpha",
+    value: "42",
+  });
 
   expect(rendered).toBe("let alpha = Number(42);");
 });
 
 test("ellipsis wildcard matches variadic middle content", () => {
   const template = compileTemplate("foo(:[x], ..., :[y]);");
-  const text = [
-    "foo(first, second, third);",
-    "foo(alpha, beta, gamma, delta);",
-    "",
-  ].join("\n");
+  const text = ["foo(first, second, third);", "foo(alpha, beta, gamma, delta);", ""].join("\n");
 
   const matches = findTemplateMatches(text, template);
 
@@ -105,12 +72,12 @@ test("ellipsis wildcard matches variadic middle content", () => {
   expect(matches[0]?.captures).toEqual({
     x: "first",
     y: "third",
-    "__ellipsis_0": "second",
+    __ellipsis_0: "second",
   });
   expect(matches[1]?.captures).toEqual({
     x: "alpha",
     y: "delta",
-    "__ellipsis_0": "beta, gamma",
+    __ellipsis_0: "beta, gamma",
   });
 });
 
@@ -126,10 +93,7 @@ test("renderTemplate can reuse ellipsis capture in replacement", () => {
 
 test("compileTemplate allows escaping hole opener and ellipsis as literal text", () => {
   const holeLiteral = compileTemplate("const :[name] = '\\:[value';");
-  const holeMatches = findTemplateMatches(
-    "const foo = ':[value';\n",
-    holeLiteral,
-  );
+  const holeMatches = findTemplateMatches("const foo = ':[value';\n", holeLiteral);
   expect(holeMatches.length).toBe(1);
   expect(holeMatches[0]?.captures).toEqual({ name: "foo" });
 

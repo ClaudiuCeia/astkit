@@ -3,6 +3,14 @@
 `astkit` is a token-efficient, reproducible structural search/patch toolkit for TypeScript/JavaScript that can be run manually, in CI, or by an agent.
 It operates on AST structure, TypeScript type services, and reference graphs.
 
+Monorepo packages:
+
+- `@claudiu-ceia/astkit`: umbrella CLI + library exports
+- `@claudiu-ceia/spatch`: structural rewrite tool
+- `@claudiu-ceia/sgrep`: structural search tool
+- `@claudiu-ceia/nav`: TypeScript navigation/reference tool
+- `@claudiu-ceia/astkit-core`: shared internals
+
 ## What astkit provides
 
 - Definition and reference navigation via the TypeScript language service
@@ -12,6 +20,7 @@ It operates on AST structure, TypeScript type services, and reference graphs.
 ## Non-Goals
 
 `astkit` does not:
+
 - infer program intent or meaning
 - perform whole-program flow analysis
 - prove correctness or enforce architecture
@@ -77,7 +86,7 @@ astkit nav declarations <file>
 astkit nav definition <location>
 astkit nav references <location>
 astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] <pattern-input> [scope]
-astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--cwd <path>] <patch-input> [scope]
+astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--check] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <patch-input> [scope]
 astkit code-rank [--json] [--limit <n>] [--cwd <path>] [scope]
 ```
 
@@ -90,6 +99,7 @@ astkit nav references <location>
 ```
 
 `<location>` format:
+
 - `path/to/file.ts:120:17`
 
 Line and character are 1-indexed.
@@ -238,6 +248,7 @@ astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
 ```
 
 Notes:
+
 - In bash/zsh, `$'...'` enables `\n` escapes for multi-line patch documents. Alternatively, pass a patch file path as `<patch-input>`.
 
 Mock execution:
@@ -334,6 +345,7 @@ Default compact `search` output:
 ```
 
 JSON `search` output (`--json`) includes:
+
 - files scanned/matched
 - total matches
 - byte spans
@@ -344,25 +356,38 @@ JSON `search` output (`--json`) includes:
 
 ## Programmatic API
 
-Root exports:
-- `patchProject` from `src/spatch`
-- `searchProject` from `src/sgrep`
-- `rankCode` from `src/code-rank`
+`@claudiu-ceia/astkit` re-exports public APIs from:
+
+- `@claudiu-ceia/spatch`
+- `@claudiu-ceia/sgrep`
+- `@claudiu-ceia/nav`
 
 ```ts
 import { patchProject, rankCode, searchProject } from "@claudiu-ceia/astkit";
 ```
 
-See detailed internals:
-- `src/spatch/README.md`
-- `src/sgrep/README.md`
+Package-level docs:
+
+- `packages/spatch/README.md`
+- `packages/sgrep/README.md`
+- `packages/nav/README.md`
 
 ## Development
 
-Run local CLI:
+Run local CLIs from the monorepo root:
 
 ```bash
 bun run astkit -- <command> [args]
+bun run spatch -- --help
+bun run sgrep -- --help
+bun run nav -- --help
+```
+
+Format:
+
+```bash
+npm run format
+npm run format:check
 ```
 
 Build distributable output:
@@ -375,6 +400,14 @@ Run tests:
 
 ```bash
 bun test
+npm run test:spatch
+```
+
+Coverage:
+
+```bash
+npm run test:coverage
+npm run test:spatch:coverage
 ```
 
 Run typecheck:
@@ -397,8 +430,8 @@ npm run skill:install
 
 ## Code Organization
 
-- `src/nav/*`: TypeScript language-service navigation commands
-- `src/sgrep/*`: search pipeline (`parse -> search -> output`)
-- `src/spatch/*`: patch pipeline (`parse -> rewrite -> output`)
-- `src/pattern/*`: shared structural parser/matcher/renderer
-- `src/common/*`: shared helpers (for example inline-or-file text resolution)
+- `packages/nav/src/*`: TypeScript language-service navigation and ranking
+- `packages/sgrep/src/*`: search pipeline (`parse -> search -> output`)
+- `packages/spatch/src/*`: patch pipeline (`parse -> rewrite -> output`)
+- `packages/astkit-core/src/*`: shared matching, file traversal, and utility helpers
+- `packages/astkit/src/*`: umbrella CLI wiring (`astkit nav|search|patch|code-rank`)

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parsePatchDocument } from "../src/patch-document.ts";
+import { parsePatchDocument } from "../src/phases/patch-document.ts";
 
 test("parsePatchDocument extracts pattern/replacement from +/- lines", () => {
   const patch = [
@@ -13,20 +13,10 @@ test("parsePatchDocument extracts pattern/replacement from +/- lines", () => {
   const parsed = parsePatchDocument(patch);
 
   expect(parsed.pattern).toBe(
-    [
-      "function wrap() {",
-      "  const value = 1;",
-      "  return value;",
-      "}",
-    ].join("\n"),
+    ["function wrap() {", "  const value = 1;", "  return value;", "}"].join("\n"),
   );
   expect(parsed.replacement).toBe(
-    [
-      "function wrap() {",
-      "  let value = 1;",
-      "  return value;",
-      "}",
-    ].join("\n"),
+    ["function wrap() {", "  let value = 1;", "  return value;", "}"].join("\n"),
   );
   expect(parsed.additions).toBe(1);
   expect(parsed.deletions).toBe(1);

@@ -1,18 +1,23 @@
 {
   "name": "astkit-workspace",
   "private": true,
-  "type": "module",
   "workspaces": [
     "packages/*"
   ],
+  "type": "module",
   "scripts": {
     "astkit": "bun run packages/astkit/src/cli.ts",
     "sgrep": "bun run packages/sgrep/src/cli.ts",
     "spatch": "bun run packages/spatch/src/cli.ts",
     "nav": "bun run packages/nav/src/cli.ts",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "test:spatch": "bun test packages/spatch/__tests__",
+    "test:spatch:coverage": "bun test --coverage packages/spatch/__tests__",
     "bench": "bun run bench/run.ts",
     "bench:baseline": "bun run bench/baseline.ts",
     "bench:check": "bun run bench/check.ts",
@@ -26,6 +31,7 @@
     "@changesets/cli": "^2.28.1",
     "@types/bun": "latest",
     "mitata": "^1.0.34",
+    "oxfmt": "^0.31.0",
     "typescript": "^5.9.3"
   }
 }
