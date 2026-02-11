@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   stdin as processStdin,
@@ -45,6 +45,8 @@ export async function runInteractivePatchCommand(
 ): Promise<SpatchResult> {
   const scope = options.scope ?? ".";
   const cwd = options.cwd;
+  const resolvedCwd = path.resolve(cwd ?? process.cwd());
+  const resolvedScope = path.resolve(resolvedCwd, scope);
   const noColor = options.noColor;
   const interactiveDecider = options.interactiveDecider;
 
@@ -144,7 +146,10 @@ export async function runInteractivePatchCommand(
       continue;
     }
 
-    const absolutePath = path.resolve(cwd ?? process.cwd(), file.file);
+    const absolutePath = await resolveInteractiveFilePath(file.file, {
+      cwd: resolvedCwd,
+      scope: resolvedScope,
+    });
     const originalText = await readFile(absolutePath, "utf8");
     validateSelectedOccurrences(file.file, originalText, selected);
     const rewrittenText = applySelectedOccurrences(originalText, selected);
@@ -376,4 +381,33 @@ function validateSelectedOccurrences(
 
     cursor = occurrence.end;
   }
+}
+
+async function resolveInteractiveFilePath(
+  file: string,
+  options: { cwd: string; scope: string },
+): Promise<string> {
+  if (path.isAbsolute(file)) {
+    return file;
+  }
+
+  const candidates = [
+    path.resolve(options.cwd, file),
+    path.resolve(options.scope, file),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const candidateStats = await stat(candidate);
+      if (candidateStats.isFile()) {
+        return candidate;
+      }
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  throw new Error(
+    `Unable to resolve interactive patch target file: ${file}. Re-run spatch interactive.`,
+  );
 }

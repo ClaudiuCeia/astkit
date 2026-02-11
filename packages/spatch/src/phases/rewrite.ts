@@ -102,6 +102,7 @@ export async function rewriteProject(
       const perFileStarted = verbose >= 2 ? nowNs() : 0n;
       const fileResult = await rewriteFile({
         cwd,
+        scopePath: resolvedScope,
         filePath,
         patternTemplate: patch.pattern,
         replacementTemplate: patch.replacement,
@@ -181,6 +182,7 @@ export async function rewriteProject(
 
 type RewriteFileInput = {
   cwd: string;
+  scopePath: string;
   filePath: string;
   patternTemplate: string;
   replacementTemplate: string;
@@ -266,7 +268,7 @@ async function rewriteFile(
   }
 
   return {
-    file: path.relative(input.cwd, input.filePath) || path.basename(input.filePath),
+    file: toDisplayFilePath(input),
     matchCount: matches.length,
     replacementCount,
     changed,
@@ -306,6 +308,32 @@ function applyOccurrences(
 
   parts.push(source.slice(cursor));
   return parts.join("");
+}
+
+function toDisplayFilePath(input: { cwd: string; scopePath: string; filePath: string }): string {
+  const relativeToCwd = path.relative(input.cwd, input.filePath);
+  if (isRelativeWithinBase(relativeToCwd)) {
+    return relativeToCwd.length > 0 ? relativeToCwd : path.basename(input.filePath);
+  }
+
+  const relativeToScope = path.relative(input.scopePath, input.filePath);
+  if (isRelativeWithinBase(relativeToScope)) {
+    return relativeToScope.length > 0 ? relativeToScope : path.basename(input.filePath);
+  }
+
+  return input.filePath;
+}
+
+function isRelativeWithinBase(relativePath: string): boolean {
+  if (relativePath.length === 0) {
+    return true;
+  }
+
+  if (path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  return relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`);
 }
 
 function detectLineEnding(text: string): LineEnding {

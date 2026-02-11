@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { patchProject } from "../src/spatch.ts";
@@ -105,6 +105,51 @@ test("patchProject accepts single-file scope", async () => {
     expect(result.filesChanged).toBe(1);
     expect(await readFile(target, "utf8")).toBe("let target = true;\n");
     expect(await readFile(other, "utf8")).toBe("const other = true;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchProject reports scope-relative file paths when scope is outside cwd", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const srcDir = path.join(workspace, "src");
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const result = await patchProject(patch, { scope: srcDir });
+
+    expect(result.files.length).toBe(1);
+    expect(result.files[0]?.file).toBe("sample.ts");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("patchProject keeps cwd-relative file paths when scope is within cwd", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const srcDir = path.join(workspace, "src");
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const result = await patchProject(patch, {
+      cwd: workspace,
+      scope: "src",
+    });
+
+    expect(result.files.length).toBe(1);
+    expect(result.files[0]?.file).toBe(path.join("src", "sample.ts"));
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
