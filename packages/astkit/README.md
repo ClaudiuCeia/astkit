@@ -77,7 +77,7 @@ Full command surface:
 astkit nav declarations <file>
 astkit nav definition <location>
 astkit nav references <location>
-astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] <pattern-input> [scope]
+astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <pattern-input> [scope]
 astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--check] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <patch-input> [scope]
 astkit code-rank [--json] [--limit <n>] [--cwd <path>] [scope]
 ```
@@ -162,7 +162,7 @@ $ astkit nav references src/__tests__/fixtures/simple.ts:1:18
 ### `search` (`sgrep`)
 
 ```bash
-astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json]
+astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json] [--concurrency <n>] [--verbose <level>]
 ```
 
 - Default output is compact, file-grouped text
@@ -171,6 +171,8 @@ astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorph
 - Isomorphism expansion is enabled by default (commutative binary operators, object-literal key order, redundant parentheses)
 - `--no-isomorphisms` disables isomorphism expansion
 - `--json` prints structured result
+- `--concurrency` controls max files processed in parallel
+- `--verbose` enables perf tracing logs (1=summary, 2=adds slow files)
 
 Examples:
 
