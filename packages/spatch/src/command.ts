@@ -190,24 +190,36 @@ export const patchCommand = buildCommand({
         },
       },
       interactive: {
-        kind: "boolean" as const,
+        kind: "parsed" as const,
         optional: true,
         brief: "Interactively select which matches to apply",
+        placeholder: "bool",
+        inferEmpty: true,
+        parse: parseFlagBoolean,
       },
       json: {
-        kind: "boolean" as const,
+        kind: "parsed" as const,
         optional: true,
         brief: "Output structured JSON instead of compact diff-style text",
+        placeholder: "bool",
+        inferEmpty: true,
+        parse: parseFlagBoolean,
       },
       "no-color": {
-        kind: "boolean" as const,
+        kind: "parsed" as const,
         optional: true,
         brief: "Disable colored output",
+        placeholder: "bool",
+        inferEmpty: true,
+        parse: parseFlagBoolean,
       },
       "dry-run": {
-        kind: "boolean" as const,
+        kind: "parsed" as const,
         optional: true,
         brief: "Preview changes without writing files",
+        placeholder: "bool",
+        inferEmpty: true,
+        parse: parseFlagBoolean,
       },
       cwd: {
         kind: "parsed" as const,
@@ -238,6 +250,33 @@ export const patchCommand = buildCommand({
     brief: "Apply structural rewrite from a patch document",
   },
 });
+
+function parseFlagBoolean(input: string): boolean {
+  // For flags declared with `inferEmpty: true`, Stricli passes "" when the flag
+  // is present with no explicit value (e.g. `--json`).
+  if (input === "") {
+    return true;
+  }
+
+  switch (input.toLowerCase()) {
+    case "1":
+    case "true":
+    case "t":
+    case "yes":
+    case "y":
+    case "on":
+      return true;
+    case "0":
+    case "false":
+    case "f":
+    case "no":
+    case "n":
+    case "off":
+      return false;
+    default:
+      throw new Error(`Expected boolean value, got: ${JSON.stringify(input)}`);
+  }
+}
 
 function buildChalk(options: FormatPatchOutputOptions): ChalkInstance {
   if (options.chalkInstance) {
