@@ -1,10 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  compileReplacementTemplate,
   compileTemplate,
+  type CompiledReplacementTemplate,
   ELLIPSIS_CAPTURE_PREFIX,
   findTemplateMatches,
-  renderTemplate,
+  renderCompiledTemplate,
   collectPatchableFiles,
   createLineStarts,
   formatMs,
@@ -57,11 +59,14 @@ export async function rewriteProject(
   const compileStarted = verbose > 0 ? nowNs() : 0n;
   const patchVariants = new Map<
     LineEnding,
-    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+    {
+      compiledPattern: ReturnType<typeof compileTemplate>;
+      compiledReplacement: CompiledReplacementTemplate;
+    }
   >();
   patchVariants.set("\n", {
     compiledPattern: compileTemplate(patch.pattern),
-    replacementTemplate: patch.replacement,
+    compiledReplacement: compileReplacementTemplate(patch.replacement),
   });
   if (verbose > 0) {
     log(
@@ -188,7 +193,10 @@ type RewriteFileInput = {
   replacementTemplate: string;
   patchVariants: Map<
     LineEnding,
-    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+    {
+      compiledPattern: ReturnType<typeof compileTemplate>;
+      compiledReplacement: CompiledReplacementTemplate;
+    }
   >;
   encoding: BufferEncoding;
   dryRun: boolean;
@@ -225,7 +233,10 @@ async function rewriteFile(
   const lineStarts = createLineStarts(originalText);
   const renderStarted = input.stats ? nowNs() : 0n;
   const occurrences = matches.map((match) => {
-    const rendered = renderTemplate(patchVariant.replacementTemplate, match.captures);
+    const rendered = renderCompiledTemplate(
+      patchVariant.compiledReplacement,
+      match.captures,
+    );
     const { line, character } = toLineCharacter(lineStarts, match.start);
     return {
       start: match.start,
@@ -350,9 +361,15 @@ function resolvePatchVariant(input: {
   lineEnding: LineEnding;
   patchVariants: Map<
     LineEnding,
-    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+    {
+      compiledPattern: ReturnType<typeof compileTemplate>;
+      compiledReplacement: CompiledReplacementTemplate;
+    }
   >;
-}): { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string } {
+}): {
+  compiledPattern: ReturnType<typeof compileTemplate>;
+  compiledReplacement: CompiledReplacementTemplate;
+} {
   const cached = input.patchVariants.get(input.lineEnding);
   if (cached) {
     return cached;
@@ -365,7 +382,7 @@ function resolvePatchVariant(input: {
   );
   const variant = {
     compiledPattern: compileTemplate(pattern),
-    replacementTemplate,
+    compiledReplacement: compileReplacementTemplate(replacementTemplate),
   };
   input.patchVariants.set(input.lineEnding, variant);
   return variant;

@@ -23,6 +23,11 @@ export type CompiledTemplate = {
   tokens: TemplateToken[];
 };
 
+export type CompiledReplacementTemplate = {
+  source: string;
+  tokens: TemplateToken[];
+};
+
 export type TemplateMatch = {
   start: number;
   end: number;
