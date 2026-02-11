@@ -163,6 +163,40 @@ test("runPatchCommand interactive decider receives progress metadata", async () 
   }
 });
 
+test("runPatchCommand interactive mode honors encoding for file IO", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(
+      target,
+      Buffer.from("// café\nconst value = 1;\n", "latin1"),
+    );
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const result = await runPatchCommand(
+      patch,
+      workspace,
+      { interactive: true },
+      {
+        encoding: "latin1",
+        interactiveDecider: async () => "yes",
+      },
+    );
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.filesChanged).toBe(1);
+    const actual = await readFile(target);
+    const expected = Buffer.from("// café\nlet value = 1;\n", "latin1");
+    expect(actual.equals(expected)).toBe(true);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand interactive aborts when file changes before apply and avoids partial writes", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 

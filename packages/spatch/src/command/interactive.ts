@@ -47,6 +47,7 @@ export async function runInteractivePatchCommand(
   const cwd = options.cwd;
   const resolvedCwd = path.resolve(cwd ?? process.cwd());
   const resolvedScope = path.resolve(resolvedCwd, scope);
+  const encoding = options.encoding ?? "utf8";
   const noColor = options.noColor;
   const interactiveDecider = options.interactiveDecider;
 
@@ -150,7 +151,7 @@ export async function runInteractivePatchCommand(
       cwd: resolvedCwd,
       scope: resolvedScope,
     });
-    const originalText = await readFile(absolutePath, "utf8");
+    const originalText = await readFile(absolutePath, encoding);
     validateSelectedOccurrences(file.file, originalText, selected);
     const rewrittenText = applySelectedOccurrences(originalText, selected);
     const changed = rewrittenText !== originalText;
@@ -186,7 +187,7 @@ export async function runInteractivePatchCommand(
     }
 
     if (prepared.changed) {
-      await writeFile(prepared.absolutePath, prepared.rewrittenText, "utf8");
+      await writeFile(prepared.absolutePath, prepared.rewrittenText, encoding);
     }
 
     fileResults.push({
@@ -194,8 +195,8 @@ export async function runInteractivePatchCommand(
       replacementCount: prepared.replacementCount,
       changed: prepared.changed,
       byteDelta: prepared.changed
-        ? Buffer.byteLength(prepared.rewrittenText, "utf8") -
-          Buffer.byteLength(prepared.originalText, "utf8")
+        ? Buffer.byteLength(prepared.rewrittenText, encoding) -
+          Buffer.byteLength(prepared.originalText, encoding)
         : 0,
       occurrences: prepared.selected,
     });

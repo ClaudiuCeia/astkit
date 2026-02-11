@@ -21,6 +21,11 @@ import type { SpatchOptions, SpatchResult } from "./types.ts";
 export type RunPatchCommandOptions = {
   interactiveDecider?: InteractiveDecider;
   /**
+   * Text encoding used for reading/writing scoped source files.
+   * Defaults to "utf8".
+   */
+  encoding?: BufferEncoding;
+  /**
    * Optional logger override. Defaults to stderr when --verbose is enabled.
    */
   logger?: (line: string) => void;
@@ -54,6 +59,7 @@ export async function runPatchCommand(
   const patchOptions: SpatchOptions = {
     concurrency: flags.concurrency,
     cwd: patchCwd,
+    encoding: options.encoding,
     logger,
     scope: patchScope,
     verbose: flags.verbose,
