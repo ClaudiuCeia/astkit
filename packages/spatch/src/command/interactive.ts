@@ -4,7 +4,13 @@ import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { patchProject } from "../spatch.ts";
 import type { SpatchFileResult, SpatchOccurrence, SpatchOptions, SpatchResult } from "../types.ts";
-import { buildChalk, countLines, splitDiffLines, type FormatPatchOutputOptions } from "./output.ts";
+import {
+  buildChalk,
+  countLines,
+  escapeTerminalText,
+  splitDiffLines,
+  type FormatPatchOutputOptions,
+} from "./output.ts";
 
 export type InteractiveChoice = "yes" | "no" | "all" | "quit";
 
@@ -290,6 +296,7 @@ function formatInteractiveChangeBlock(
 ): string {
   const chalkInstance = buildChalk(options);
   const useColor = chalkInstance.level > 0;
+  const safeFile = escapeTerminalText(ctx.file);
   const divider = "─".repeat(72);
   const oldCount = countLines(ctx.occurrence.matched);
   const newCount = countLines(ctx.occurrence.replacement);
@@ -298,15 +305,17 @@ function formatInteractiveChangeBlock(
     useColor ? chalkInstance.gray(divider) : divider,
     useColor
       ? chalkInstance.bold(
-          `Change ${ctx.changeNumber}/${ctx.totalChanges} · ${ctx.file}:${ctx.occurrence.line}:${ctx.occurrence.character}`,
+          `Change ${ctx.changeNumber}/${ctx.totalChanges} · ${safeFile}:${ctx.occurrence.line}:${ctx.occurrence.character}`,
         )
-      : `Change ${ctx.changeNumber}/${ctx.totalChanges} · ${ctx.file}:${ctx.occurrence.line}:${ctx.occurrence.character}`,
+      : `Change ${ctx.changeNumber}/${ctx.totalChanges} · ${safeFile}:${ctx.occurrence.line}:${ctx.occurrence.character}`,
     useColor ? chalkInstance.cyan(hunkHeader) : hunkHeader,
     ...splitDiffLines(ctx.occurrence.matched).map((line) =>
-      useColor ? chalkInstance.red(`-${line}`) : `-${line}`,
+      useColor ? chalkInstance.red(`-${escapeTerminalText(line)}`) : `-${escapeTerminalText(line)}`,
     ),
     ...splitDiffLines(ctx.occurrence.replacement).map((line) =>
-      useColor ? chalkInstance.green(`+${line}`) : `+${line}`,
+      useColor
+        ? chalkInstance.green(`+${escapeTerminalText(line)}`)
+        : `+${escapeTerminalText(line)}`,
     ),
     useColor
       ? chalkInstance.gray("Actions: [y] apply · [n] skip · [a] apply remaining · [q] quit")

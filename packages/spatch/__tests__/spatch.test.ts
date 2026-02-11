@@ -18,7 +18,7 @@ test("patchProject rewrites matching files in directory scope", async () => {
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await patchProject(patch, { scope: workspace });
+    const result = await patchProject(patch, { cwd: workspace, scope: workspace });
 
     expect(result.filesScanned).toBe(2);
     expect(result.filesMatched).toBe(2);
@@ -45,6 +45,7 @@ test("patchProject dry run does not write files", async () => {
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
       dryRun: true,
     });
@@ -71,6 +72,7 @@ test("patchProject aborts non-interactive apply when file changes before write",
 
     await expect(
       patchProject(patch, {
+        cwd: workspace,
         scope: workspace,
         // Internal test hook: mutate after read, before atomic write.
         __beforeWriteFile: async ({ filePath }: { filePath: string }) => {
@@ -98,6 +100,7 @@ test("patchProject atomic write leaves no temporary files behind", async () => {
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -111,6 +114,29 @@ test("patchProject atomic write leaves no temporary files behind", async () => {
   }
 });
 
+test("patchProject rejects scope outside nearest git repository root", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "spatch-outside-"));
+
+  try {
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await writeFile(path.join(workspace, "inside.ts"), "const inside = 1;\n", "utf8");
+    await writeFile(path.join(outside, "outside.ts"), "const outside = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    await expect(
+      patchProject(patch, {
+        cwd: workspace,
+        scope: outside,
+      }),
+    ).rejects.toThrow("Scope resolves outside repository root");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
 test("patchProject enforces repeated hole equality", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
 
@@ -121,6 +147,7 @@ test("patchProject enforces repeated hole equality", async () => {
     const patch = ["-:[x] + :[x];", "+double(:[x]);"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -144,6 +171,7 @@ test("patchProject accepts single-file scope", async () => {
     const patch = ["-const :[name] = true;", "+let :[name] = true;"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: target,
     });
 
@@ -161,12 +189,13 @@ test("patchProject reports scope-relative file paths when scope is outside cwd",
 
   try {
     const srcDir = path.join(workspace, "src");
+    const otherCwd = path.join(workspace, "sandbox");
     await mkdir(srcDir, { recursive: true });
     await writeFile(path.join(srcDir, "sample.ts"), "const value = 1;\n", "utf8");
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await patchProject(patch, { scope: srcDir });
+    const result = await patchProject(patch, { cwd: otherCwd, scope: srcDir });
 
     expect(result.files.length).toBe(1);
     expect(result.files[0]?.file).toBe("sample.ts");
@@ -210,6 +239,7 @@ test("patchProject supports regex-constrained holes", async () => {
     ].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -244,6 +274,7 @@ test("patchProject accepts patch document syntax (+/- lines)", async () => {
     ].join("\n");
 
     const result = await patchProject(oneFilePatch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -267,6 +298,7 @@ test("patchProject supports escaped markers", async () => {
     const oneFilePatch = ["\\-keep", "\\+keep", "-old", "+new", ""].join("\n");
 
     const result = await patchProject(oneFilePatch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -313,6 +345,7 @@ test("patchProject skips unbalanced captures", async () => {
     const patch = ["-run(:[arg]);", "+exec(:[arg]);"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -335,6 +368,7 @@ test("patchProject throws for unknown replacement holes", async () => {
     let thrown: unknown = null;
     try {
       await patchProject(patch, {
+        cwd: workspace,
         scope: workspace,
       });
     } catch (error) {
@@ -357,6 +391,7 @@ test("patchProject supports ellipsis wildcard", async () => {
     const patch = ["-foo(:[x], ...);", "+bar(:[x], ...);"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 
@@ -379,6 +414,7 @@ test("patchProject rewrites CRLF files with LF patch documents", async () => {
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
     const result = await patchProject(patch, {
+      cwd: workspace,
       scope: workspace,
     });
 

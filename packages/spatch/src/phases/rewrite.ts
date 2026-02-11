@@ -64,6 +64,12 @@ export async function rewriteProject(
   const concurrency = options.concurrency ?? 8;
   const beforeWriteFile = (options as InternalRewriteOptions).__beforeWriteFile;
   const resolvedScope = path.resolve(cwd, scope);
+  const repoRoot = await findNearestGitRepoRoot(cwd);
+  if (repoRoot && !isPathWithinBase(repoRoot, resolvedScope)) {
+    throw new Error(
+      `Scope resolves outside repository root: scope=${resolvedScope} repoRoot=${repoRoot}.`,
+    );
+  }
   const compileStarted = verbose > 0 ? nowNs() : 0n;
   const patchVariants = new Map<
     LineEnding,
@@ -324,6 +330,25 @@ function applyOccurrences(
   return parts.join("");
 }
 
+async function findNearestGitRepoRoot(startDirectory: string): Promise<string | null> {
+  let current = path.resolve(startDirectory);
+
+  while (true) {
+    try {
+      await stat(path.join(current, ".git"));
+      return current;
+    } catch {
+      // Move upward to find nearest git root.
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
 type AtomicWriteInput = {
   filePath: string;
   originalText: string;
@@ -399,6 +424,11 @@ function isRelativeWithinBase(relativePath: string): boolean {
   }
 
   return relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`);
+}
+
+function isPathWithinBase(basePath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(basePath, candidatePath);
+  return isRelativeWithinBase(relativePath);
 }
 
 function detectLineEnding(text: string): LineEnding {

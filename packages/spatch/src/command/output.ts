@@ -16,10 +16,11 @@ export function formatPatchOutput(
   const changedFiles = result.files.filter((file) => file.replacementCount > 0);
 
   for (const file of changedFiles) {
+    const safeFile = escapeTerminalText(file.file);
     const headerPrefix = useColor ? chalkInstance.bold : (value: string) => value;
-    lines.push(headerPrefix(`diff --git a/${file.file} b/${file.file}`));
-    lines.push(useColor ? chalkInstance.gray(`--- a/${file.file}`) : `--- a/${file.file}`);
-    lines.push(useColor ? chalkInstance.gray(`+++ b/${file.file}`) : `+++ b/${file.file}`);
+    lines.push(headerPrefix(`diff --git a/${safeFile} b/${safeFile}`));
+    lines.push(useColor ? chalkInstance.gray(`--- a/${safeFile}`) : `--- a/${safeFile}`);
+    lines.push(useColor ? chalkInstance.gray(`+++ b/${safeFile}`) : `+++ b/${safeFile}`);
 
     for (const occurrence of file.occurrences) {
       if (occurrence.matched === occurrence.replacement) {
@@ -32,12 +33,12 @@ export function formatPatchOutput(
       lines.push(useColor ? chalkInstance.cyan(hunkHeader) : hunkHeader);
 
       for (const oldLine of splitDiffLines(occurrence.matched)) {
-        const line = `-${oldLine}`;
+        const line = `-${escapeTerminalText(oldLine)}`;
         lines.push(useColor ? chalkInstance.red(line) : line);
       }
 
       for (const newLine of splitDiffLines(occurrence.replacement)) {
-        const line = `+${newLine}`;
+        const line = `+${escapeTerminalText(newLine)}`;
         lines.push(useColor ? chalkInstance.green(line) : line);
       }
     }
@@ -88,6 +89,19 @@ export function splitDiffLines(text: string): string[] {
 
 export function countLines(text: string): number {
   return splitDiffLines(text).length;
+}
+
+export function escapeTerminalText(text: string): string {
+  let output = "";
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (code === 0x1b || code < 0x20 || code === 0x7f) {
+      output += `\\x${code.toString(16).padStart(2, "0")}`;
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function pluralize(word: string, count: number): string {

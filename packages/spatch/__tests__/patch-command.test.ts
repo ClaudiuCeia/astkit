@@ -16,7 +16,7 @@ test("runPatchCommand applies patch document string in scope", async () => {
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await runPatchCommand(patch, workspace, {});
+    const result = await runPatchCommand(patch, workspace, { cwd: workspace });
 
     expect(result.totalMatches).toBe(1);
     expect(result.filesChanged).toBe(1);
@@ -59,7 +59,12 @@ test("runPatchCommand can read patch document from stdin when patchInput is '-'"
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await runPatchCommand("-", workspace, {}, { readStdin: async () => patch });
+    const result = await runPatchCommand(
+      "-",
+      workspace,
+      { cwd: workspace },
+      { readStdin: async () => patch },
+    );
 
     expect(result.totalMatches).toBe(1);
     expect(result.filesChanged).toBe(1);
@@ -79,7 +84,7 @@ test("runPatchCommand supports dryRun flag", async () => {
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await runPatchCommand(patch, workspace, { "dry-run": true });
+    const result = await runPatchCommand(patch, workspace, { cwd: workspace, "dry-run": true });
 
     expect(result.dryRun).toBe(true);
     expect(result.totalMatches).toBe(1);
@@ -99,7 +104,7 @@ test("runPatchCommand supports check flag as dry-run guardrail", async () => {
 
     const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
 
-    const result = await runPatchCommand(patch, workspace, { check: true });
+    const result = await runPatchCommand(patch, workspace, { cwd: workspace, check: true });
 
     expect(result.dryRun).toBe(true);
     expect(result.totalReplacements).toBe(1);
@@ -122,7 +127,7 @@ test("runPatchCommand interactive mode applies selected matches only", async () 
     const result = await runPatchCommand(
       patch,
       workspace,
-      { interactive: true },
+      { interactive: true, cwd: workspace },
       {
         interactiveDecider: async () => answers.shift() ?? "no",
       },
@@ -151,7 +156,7 @@ test("runPatchCommand interactive decider receives progress metadata", async () 
     await runPatchCommand(
       patch,
       workspace,
-      { interactive: true },
+      { interactive: true, cwd: workspace },
       {
         interactiveDecider: async (ctx) => {
           seen.push({
@@ -184,7 +189,7 @@ test("runPatchCommand interactive mode honors encoding for file IO", async () =>
     const result = await runPatchCommand(
       patch,
       workspace,
-      { interactive: true },
+      { interactive: true, cwd: workspace },
       {
         encoding: "latin1",
         interactiveDecider: async () => "yes",
@@ -355,7 +360,7 @@ test("runPatchCommand interactive mode forwards concurrency and verbose logger",
     await runPatchCommand(
       patch,
       workspace,
-      { interactive: true, concurrency: 3, verbose: 1 },
+      { interactive: true, cwd: workspace, concurrency: 3, verbose: 1 },
       {
         interactiveDecider: async () => "no",
         logger: (line) => logs.push(line),
@@ -453,6 +458,48 @@ test("formatPatchOutput renders compact diff-like output", () => {
   expect(output).toContain("1 file changed, 1 replacement, (dry-run)");
 });
 
+test("formatPatchOutput escapes terminal control sequences in paths and lines", () => {
+  const result: SpatchResult = {
+    dryRun: true,
+    scope: "/tmp/workspace/src",
+    pattern: "const :[name] = :[value];",
+    replacement: "let :[name] = :[value];",
+    filesScanned: 1,
+    filesMatched: 1,
+    filesChanged: 1,
+    totalMatches: 1,
+    totalReplacements: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/\u001b[31mevil.ts",
+        matchCount: 1,
+        replacementCount: 1,
+        changed: true,
+        byteDelta: 0,
+        occurrences: [
+          {
+            start: 0,
+            end: 18,
+            line: 1,
+            character: 1,
+            matched: 'const msg = "\u001b[2J";',
+            replacement: 'let msg = "\u001b[2J";',
+            captures: {},
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatPatchOutput(result, { color: false });
+
+  expect(output).not.toContain("\u001b");
+  expect(output).toContain("src/\\x1b[31mevil.ts");
+  expect(output).toContain('-const msg = "\\x1b[2J";');
+  expect(output).toContain('+let msg = "\\x1b[2J";');
+});
+
 test("formatPatchOutput supports no-change summary", () => {
   const result: SpatchResult = {
     dryRun: true,
@@ -538,7 +585,16 @@ test("cli --check exits non-zero when replacements would be made", async () => {
     );
 
     const cli = Bun.spawnSync({
-      cmd: ["bun", "run", "packages/spatch/src/cli.ts", patchFile, workspace, "--check"],
+      cmd: [
+        "bun",
+        "run",
+        "packages/spatch/src/cli.ts",
+        patchFile,
+        workspace,
+        "--check",
+        "--cwd",
+        workspace,
+      ],
       cwd: process.cwd(),
       stdout: "pipe",
       stderr: "pipe",
