@@ -424,3 +424,35 @@ test("searchProject matches reordered object literal key/value entries", async (
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("searchProject verbose=2 logs slow-file entries for matching and non-matching files", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
+  const logs: string[] = [];
+
+  try {
+    await writeFile(path.join(workspace, "match.ts"), "const value = 1;\n", "utf8");
+    await writeFile(path.join(workspace, "no-match.ts"), "let nope = 1;\n", "utf8");
+
+    const result = await searchProject("const :[name] = :[value];", {
+      cwd: workspace,
+      scope: ".",
+      verbose: 2,
+      logger: (line) => logs.push(line),
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(
+      logs.some((line) => line.includes("[sgrep] slowFile") && line.includes("match.ts")),
+    ).toBe(true);
+    expect(
+      logs.some(
+        (line) =>
+          line.includes("[sgrep] slowFile") &&
+          line.includes("no-match.ts") &&
+          line.includes("matches=0"),
+      ),
+    ).toBe(true);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});

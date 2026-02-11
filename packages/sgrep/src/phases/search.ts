@@ -99,11 +99,11 @@ export async function searchProjectFiles(
         encoding,
         stats: verbose > 0 ? stats : undefined,
       });
-      if (verbose >= 2 && fileResult) {
+      if (verbose >= 2) {
         slowFiles.push({
-          file: fileResult.file,
+          file: fileResult?.file ?? (path.relative(cwd, filePath) || path.basename(filePath)),
           ms: nsToMs(nowNs() - perFileStarted),
-          matches: fileResult.matchCount,
+          matches: fileResult?.matchCount ?? 0,
         });
       }
       return fileResult;
