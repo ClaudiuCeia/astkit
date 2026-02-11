@@ -325,3 +325,117 @@ test("formatSearchOutput escapes terminal control sequences in paths and lines",
   expect(output).toContain("//src/\\x1b[31mevil.ts");
   expect(output).toContain('1: const msg = "\\x1b[2J";');
 });
+
+test("formatSearchOutput skips ambiguous capture highlighting for repeated substrings", () => {
+  const result: SgrepResult = {
+    scope: "/tmp/workspace/src",
+    pattern: ":[x] + :[y]",
+    filesScanned: 1,
+    filesMatched: 1,
+    totalMatches: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/sample.ts",
+        matchCount: 1,
+        matches: [
+          {
+            start: 0,
+            end: 11,
+            line: 1,
+            character: 1,
+            matched: "foo + foo;",
+            captures: {
+              x: "foo",
+              y: "foo",
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatSearchOutput(result, { color: false });
+  expect(output).toContain("1: foo + foo;");
+});
+
+test("formatSearchOutput still highlights unique capture occurrences", () => {
+  const result: SgrepResult = {
+    scope: "/tmp/workspace/src",
+    pattern: ":[x] + :[y]",
+    filesScanned: 1,
+    filesMatched: 1,
+    totalMatches: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/sample.ts",
+        matchCount: 1,
+        matches: [
+          {
+            start: 0,
+            end: 11,
+            line: 1,
+            character: 1,
+            matched: "foo + bar;",
+            captures: {
+              x: "foo",
+              y: "bar",
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatSearchOutput(result, {
+    color: true,
+    chalkInstance: new Chalk({ level: 1 }),
+  });
+
+  expect(output).toContain("\u001b");
+  const fooCode = output.match(/(\u001b\[[0-9;]*m)foo\u001b\[[0-9;]*m/)?.[1];
+  const barCode = output.match(/(\u001b\[[0-9;]*m)bar\u001b\[[0-9;]*m/)?.[1];
+  expect(fooCode).toBeDefined();
+  expect(barCode).toBeDefined();
+  expect(fooCode).not.toBe(barCode);
+});
+
+test("formatSearchOutput highlights unique capture when another capture is ambiguous", () => {
+  const result: SgrepResult = {
+    scope: "/tmp/workspace/src",
+    pattern: ":[x] + :[y]",
+    filesScanned: 1,
+    filesMatched: 1,
+    totalMatches: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/sample.ts",
+        matchCount: 1,
+        matches: [
+          {
+            start: 0,
+            end: 19,
+            line: 1,
+            character: 1,
+            matched: "foo + foo + unique;",
+            captures: {
+              repeated: "foo",
+              unique: "unique",
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatSearchOutput(result, {
+    color: true,
+    chalkInstance: new Chalk({ level: 1 }),
+  });
+
+  expect(output).toContain("\u001b");
+  expect(output).toMatch(/\u001b\[[0-9;]*munique\u001b\[[0-9;]*m/);
+  expect(output).not.toMatch(/\u001b\[[0-9;]*mfoo\u001b\[[0-9;]*m/);
+});

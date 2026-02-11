@@ -131,6 +131,11 @@ function highlightCaptures(
   );
   for (let entryIndex = 0; entryIndex < sortedEntries.length; entryIndex += 1) {
     const [name, value] = sortedEntries[entryIndex]!;
+    if (!appearsExactlyOnce(preview, value)) {
+      // Without span data, repeated substrings are ambiguous; skip to avoid
+      // highlighting the wrong occurrence.
+      continue;
+    }
     const colorIndex = captureColorMap.get(name) ?? entryIndex % colorPalette.length;
     let fromIndex = 0;
 
@@ -226,6 +231,14 @@ function buildCaptureColorMap(result: SgrepResult): Map<string, number> {
   }
 
   return captureColorMap;
+}
+
+function appearsExactlyOnce(text: string, needle: string): boolean {
+  const first = text.indexOf(needle);
+  if (first < 0) {
+    return false;
+  }
+  return text.indexOf(needle, first + needle.length) < 0;
 }
 
 export const searchCommand = buildCommand({
