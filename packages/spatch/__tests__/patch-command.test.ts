@@ -205,6 +205,35 @@ test("validatePatchCommandFlags rejects --interactive with --dry-run", () => {
   ).toThrow("Cannot combine --interactive with --dry-run.");
 });
 
+test("runPatchCommand interactive mode forwards concurrency and verbose logger", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const first = 1;\nconst second = 2;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+    const logs: string[] = [];
+
+    await runPatchCommand(
+      patch,
+      workspace,
+      { interactive: true, concurrency: 3, verbose: 1 },
+      {
+        interactiveDecider: async () => "no",
+        logger: (line) => logs.push(line),
+      },
+    );
+
+    expect(logs.some((line) => line.includes("[spatch] rewriteFiles"))).toBe(true);
+    expect(logs.some((line) => line.includes("concurrency=3"))).toBe(true);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("formatPatchOutput renders compact diff-like output", () => {
   const result: SpatchResult = {
     dryRun: true,

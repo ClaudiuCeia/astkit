@@ -9,6 +9,7 @@ import { patchProject } from "../spatch.ts";
 import type {
   SpatchFileResult,
   SpatchOccurrence,
+  SpatchOptions,
   SpatchResult,
 } from "../types.ts";
 import {
@@ -29,22 +30,37 @@ export type InteractiveContext = {
 
 export type InteractiveDecider = (ctx: InteractiveContext) => Promise<InteractiveChoice>;
 
+export type RunInteractivePatchCommandOptions =
+  Pick<
+    SpatchOptions,
+    "concurrency" | "cwd" | "encoding" | "logger" | "scope" | "verbose"
+  > & {
+    noColor: boolean;
+    interactiveDecider?: InteractiveDecider;
+  };
+
 export async function runInteractivePatchCommand(
   patchInput: string,
-  scope: string,
-  cwd: string | undefined,
-  noColor: boolean,
-  interactiveDecider?: InteractiveDecider,
+  options: RunInteractivePatchCommandOptions,
 ): Promise<SpatchResult> {
+  const scope = options.scope ?? ".";
+  const cwd = options.cwd;
+  const noColor = options.noColor;
+  const interactiveDecider = options.interactiveDecider;
+
   if (!interactiveDecider && (!processStdin.isTTY || !processStdout.isTTY)) {
     throw new Error("Interactive mode requires a TTY stdin/stdout.");
   }
 
   const startedAt = Date.now();
   const dryResult = await patchProject(patchInput, {
+    concurrency: options.concurrency,
     cwd,
     dryRun: true,
+    encoding: options.encoding,
+    logger: options.logger,
     scope,
+    verbose: options.verbose,
   });
   const totalChanges = dryResult.files.reduce(
     (count, file) =>

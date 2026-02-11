@@ -16,10 +16,14 @@ import {
 } from "./command/interactive.ts";
 import { formatPatchOutput } from "./command/output.ts";
 import { patchProject } from "./spatch.ts";
-import type { SpatchResult } from "./types.ts";
+import type { SpatchOptions, SpatchResult } from "./types.ts";
 
 export type RunPatchCommandOptions = {
   interactiveDecider?: InteractiveDecider;
+  /**
+   * Optional logger override. Defaults to stderr when --verbose is enabled.
+   */
+  logger?: (line: string) => void;
   /**
    * Used for testing / embedding. If omitted and patch input is "-", stdin will
    * be read from the current process.
@@ -37,6 +41,8 @@ export async function runPatchCommand(
 
   const patchScope = scope ?? ".";
   const patchCwd = flags.cwd;
+  const logger = options.logger ??
+    (flags.verbose ? (line: string) => processStderr.write(`${line}\n`) : undefined);
   const resolvedPatchInput = await resolvePatchInput(
     patchInput,
     {
@@ -45,24 +51,28 @@ export async function runPatchCommand(
       readStdin: options.readStdin,
     },
   );
+  const patchOptions: SpatchOptions = {
+    concurrency: flags.concurrency,
+    cwd: patchCwd,
+    logger,
+    scope: patchScope,
+    verbose: flags.verbose,
+  };
 
   if (flags.interactive ?? false) {
     return runInteractivePatchCommand(
       resolvedPatchInput,
-      patchScope,
-      patchCwd,
-      flags["no-color"] ?? false,
-      options.interactiveDecider,
+      {
+        ...patchOptions,
+        noColor: flags["no-color"] ?? false,
+        interactiveDecider: options.interactiveDecider,
+      },
     );
   }
 
   return patchProject(resolvedPatchInput, {
-    concurrency: flags.concurrency,
-    cwd: patchCwd,
+    ...patchOptions,
     dryRun: flags["dry-run"] ?? false,
-    scope: patchScope,
-    verbose: flags.verbose,
-    logger: flags.verbose ? (line) => processStderr.write(`${line}\n`) : undefined,
   });
 }
 
