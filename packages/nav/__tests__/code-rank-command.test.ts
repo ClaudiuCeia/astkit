@@ -61,6 +61,35 @@ test("formatCodeRankOutput handles empty rankings", () => {
   expect(output).toBe("No ranked symbols.");
 });
 
+test("formatCodeRankOutput escapes terminal control sequences", () => {
+  const output = formatCodeRankOutput({
+    cwd: "/repo",
+    scope: "/repo/src",
+    filesScanned: 1,
+    symbolsScanned: 1,
+    symbolsRanked: 1,
+    symbols: [
+      {
+        symbol: "hot\u001b[31m",
+        kind: "function",
+        file: "src/\u001b[2Jevil.ts",
+        line: 1,
+        character: 8,
+        score: 14,
+        referenceCount: 3,
+        internalReferenceCount: 0,
+        externalReferenceCount: 3,
+        referencingFileCount: 2,
+        referencingFiles: ["src/b.ts", "src/c.ts"],
+      },
+    ],
+  });
+
+  expect(output).not.toContain("\u001b");
+  expect(output).toContain("hot\\x1b[31m");
+  expect(output).toContain("src/\\x1b[2Jevil.ts");
+});
+
 async function createRankFixtureWorkspace(): Promise<string> {
   const workspace = await mkdtemp(path.join(tmpdir(), "code-rank-command-"));
   await writeFile(

@@ -30,12 +30,28 @@ export function formatCodeRankOutput(result: CodeRankResult): string {
       continue;
     }
     const rank = index + 1;
+    const safeKind = escapeTerminalText(symbol.kind);
+    const safeSymbol = escapeTerminalText(symbol.symbol);
+    const safeFile = escapeTerminalText(symbol.file);
     lines.push(
-      `${rank}. score=${symbol.score} refs=${symbol.referenceCount} ext=${symbol.externalReferenceCount} files=${symbol.referencingFileCount} ${symbol.kind} ${symbol.symbol} ${symbol.file}:${symbol.line}:${symbol.character}`,
+      `${rank}. score=${symbol.score} refs=${symbol.referenceCount} ext=${symbol.externalReferenceCount} files=${symbol.referencingFileCount} ${safeKind} ${safeSymbol} ${safeFile}:${symbol.line}:${symbol.character}`,
     );
   }
 
   return lines.join("\n");
+}
+
+function escapeTerminalText(text: string): string {
+  let output = "";
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (code === 0x1b || code < 0x20 || code === 0x7f) {
+      output += `\\x${code.toString(16).padStart(2, "0")}`;
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 export const codeRankCommand = buildCommand({

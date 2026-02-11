@@ -46,12 +46,12 @@ export function formatDeclarationsOutput(
   const lines: Array<{ line?: number; content: string }> = [];
   const chalkInstance = buildChalk(options);
   const useColor = chalkInstance.level > 0;
-  const header = `//${result.file}`;
+  const header = `//${escapeTerminalText(result.file)}`;
   lines.push({ content: useColor ? chalkInstance.gray(header) : header });
 
   if (result.doc && result.doc.trim().length > 0) {
     lines.push({ content: "" });
-    for (const content of renderDocBlock(result.doc, "", chalkInstance)) {
+    for (const content of renderDocBlock(escapeTerminalText(result.doc), "", chalkInstance)) {
       lines.push({ content });
     }
     lines.push({ content: "" });
@@ -59,19 +59,21 @@ export function formatDeclarationsOutput(
 
   const declarations = [...result.declarations].sort((a, b) => a.line - b.line);
   for (const decl of declarations) {
-    if (decl.doc && decl.doc.trim().length > 0) {
-      for (const content of renderDocBlock(decl.doc, "", chalkInstance)) {
+    const safeDecl = escapeDeclarationInfo(decl);
+
+    if (safeDecl.doc && safeDecl.doc.trim().length > 0) {
+      for (const content of renderDocBlock(safeDecl.doc, "", chalkInstance)) {
         lines.push({ content });
       }
     }
 
-    const declLine = formatDeclarationLine(decl, chalkInstance);
+    const declLine = formatDeclarationLine(safeDecl, chalkInstance);
     lines.push({ line: decl.line, content: declLine });
 
     const isBlock = decl.kind === "class" || decl.kind === "interface" || decl.kind === "enum";
     if (isBlock) {
-      if (decl.members && decl.members.length > 0) {
-        const members = [...decl.members].sort((a, b) => a.line - b.line);
+      if (safeDecl.members && safeDecl.members.length > 0) {
+        const members = [...safeDecl.members].sort((a, b) => a.line - b.line);
         for (const member of members) {
           if (member.doc && member.doc.trim().length > 0) {
             for (const content of renderDocBlock(member.doc, "  ", chalkInstance)) {
@@ -317,6 +319,42 @@ function renderDocBlock(doc: string, indent: string, chalkInstance: ChalkInstanc
 
 function formatClosingBrace(chalkInstance: ChalkInstance): string {
   return chalkInstance.level > 0 ? chalkInstance.cyan("}") : "}";
+}
+
+function escapeTerminalText(text: string): string {
+  let output = "";
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (
+      code === 0x1b ||
+      (code < 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) ||
+      code === 0x7f
+    ) {
+      output += `\\x${code.toString(16).padStart(2, "0")}`;
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
+function escapeDeclarationInfo(declaration: DeclarationInfo): DeclarationInfo {
+  return {
+    ...declaration,
+    name: escapeTerminalText(declaration.name),
+    kind: escapeTerminalText(declaration.kind),
+    signature: escapeTerminalText(declaration.signature),
+    doc: declaration.doc ? escapeTerminalText(declaration.doc) : undefined,
+    declarationText: declaration.declarationText
+      ? escapeTerminalText(declaration.declarationText)
+      : undefined,
+    members: declaration.members?.map((member) => ({
+      ...member,
+      name: escapeTerminalText(member.name),
+      signature: escapeTerminalText(member.signature),
+      doc: member.doc ? escapeTerminalText(member.doc) : undefined,
+    })),
+  };
 }
 
 function formatGutterLine(line: number, width: number, chalkInstance: ChalkInstance): string {

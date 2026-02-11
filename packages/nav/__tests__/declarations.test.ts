@@ -141,3 +141,36 @@ test("colors function names in declarations output", () => {
 
   expect(output).toContain(chalkInstance.yellow("createUser"));
 });
+
+test("formatDeclarationsOutput escapes terminal control sequences", () => {
+  const output = formatDeclarationsOutput(
+    {
+      file: "src/\u001b[31mevil.ts",
+      doc: "Header \u001b[2J doc",
+      declarations: [
+        {
+          name: "Box\u001b[7m",
+          kind: "class",
+          signature: "Box\u001b[8m",
+          line: 1,
+          doc: "Decl \u0007 doc",
+          members: [
+            {
+              name: "member\u001b[33m",
+              signature: "member(arg: string): string\u001b[0m",
+              line: 2,
+            },
+          ],
+        },
+      ],
+    },
+    { color: false },
+  );
+
+  expect(output).not.toContain("\u001b");
+  expect(output).toContain("//src/\\x1b[31mevil.ts");
+  expect(output).toContain("Header \\x1b[2J doc");
+  expect(output).toContain("Box\\x1b[7m");
+  expect(output).toContain("Decl \\x07 doc");
+  expect(output).toContain("string\\x1b[0m");
+});
