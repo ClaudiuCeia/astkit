@@ -309,3 +309,26 @@ test("patchProject supports ellipsis wildcard", async () => {
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("patchProject rewrites CRLF files with LF patch documents", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "windows.ts");
+    await writeFile(file, "const value = 1;\r\nconst next = 2;\r\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const result = await patchProject(patch, {
+      scope: workspace,
+    });
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.totalReplacements).toBe(2);
+    expect(await readFile(file, "utf8")).toBe("let value = 1;\r\nlet next = 2;\r\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});

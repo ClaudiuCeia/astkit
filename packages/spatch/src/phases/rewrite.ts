@@ -28,6 +28,8 @@ export type RewritePhaseResult = {
   files: SpatchFileResult[];
 };
 
+type LineEnding = "\n" | "\r\n";
+
 type RewritePerfStats = {
   filesRead: number;
   readNs: bigint;
@@ -53,7 +55,14 @@ export async function rewriteProject(
   const concurrency = options.concurrency ?? 8;
   const resolvedScope = path.resolve(cwd, scope);
   const compileStarted = verbose > 0 ? nowNs() : 0n;
-  const compiledPattern = compileTemplate(patch.pattern);
+  const patchVariants = new Map<
+    LineEnding,
+    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+  >();
+  patchVariants.set("\n", {
+    compiledPattern: compileTemplate(patch.pattern),
+    replacementTemplate: patch.replacement,
+  });
   if (verbose > 0) {
     log(
       `[spatch] compilePattern ${formatMs(nsToMs(nowNs() - compileStarted))}`,
@@ -94,8 +103,9 @@ export async function rewriteProject(
       const fileResult = await rewriteFile({
         cwd,
         filePath,
+        patternTemplate: patch.pattern,
         replacementTemplate: patch.replacement,
-        compiledPattern,
+        patchVariants,
         encoding,
         dryRun,
         stats: verbose > 0 ? stats : undefined,
@@ -172,8 +182,12 @@ export async function rewriteProject(
 type RewriteFileInput = {
   cwd: string;
   filePath: string;
+  patternTemplate: string;
   replacementTemplate: string;
-  compiledPattern: ReturnType<typeof compileTemplate>;
+  patchVariants: Map<
+    LineEnding,
+    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+  >;
   encoding: BufferEncoding;
   dryRun: boolean;
   stats?: RewritePerfStats;
@@ -189,8 +203,16 @@ async function rewriteFile(
     input.stats.readNs += nowNs() - readStarted;
   }
 
+  const lineEnding = detectLineEnding(originalText);
+  const patchVariant = resolvePatchVariant({
+    patternTemplate: input.patternTemplate,
+    replacementTemplate: input.replacementTemplate,
+    lineEnding,
+    patchVariants: input.patchVariants,
+  });
+
   const matchStarted = input.stats ? nowNs() : 0n;
-  const matches = findTemplateMatches(originalText, input.compiledPattern);
+  const matches = findTemplateMatches(originalText, patchVariant.compiledPattern);
   if (input.stats) {
     input.stats.matchNs += nowNs() - matchStarted;
   }
@@ -201,7 +223,7 @@ async function rewriteFile(
   const lineStarts = createLineStarts(originalText);
   const renderStarted = input.stats ? nowNs() : 0n;
   const occurrences = matches.map((match) => {
-    const rendered = renderTemplate(input.replacementTemplate, match.captures);
+    const rendered = renderTemplate(patchVariant.replacementTemplate, match.captures);
     const { line, character } = toLineCharacter(lineStarts, match.start);
     return {
       start: match.start,
@@ -284,4 +306,46 @@ function applyOccurrences(
 
   parts.push(source.slice(cursor));
   return parts.join("");
+}
+
+function detectLineEnding(text: string): LineEnding {
+  const newlineIndex = text.indexOf("\n");
+  if (newlineIndex > 0 && text[newlineIndex - 1] === "\r") {
+    return "\r\n";
+  }
+  return "\n";
+}
+
+function resolvePatchVariant(input: {
+  patternTemplate: string;
+  replacementTemplate: string;
+  lineEnding: LineEnding;
+  patchVariants: Map<
+    LineEnding,
+    { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string }
+  >;
+}): { compiledPattern: ReturnType<typeof compileTemplate>; replacementTemplate: string } {
+  const cached = input.patchVariants.get(input.lineEnding);
+  if (cached) {
+    return cached;
+  }
+
+  const pattern = applyLineEnding(input.patternTemplate, input.lineEnding);
+  const replacementTemplate = applyLineEnding(
+    input.replacementTemplate,
+    input.lineEnding,
+  );
+  const variant = {
+    compiledPattern: compileTemplate(pattern),
+    replacementTemplate,
+  };
+  input.patchVariants.set(input.lineEnding, variant);
+  return variant;
+}
+
+function applyLineEnding(text: string, lineEnding: LineEnding): string {
+  if (lineEnding === "\n") {
+    return text;
+  }
+  return text.replaceAll("\n", "\r\n");
 }
