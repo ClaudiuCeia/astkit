@@ -8,14 +8,37 @@ type WriteFileIfUnchangedAtomicallyInput = {
   rewrittenText: string;
   encoding: BufferEncoding;
   operationName: string;
+  fs?: FileWriteFs;
+};
+
+type FileWriteFs = {
+  readFile: (path: string, encoding: BufferEncoding) => Promise<string>;
+  stat: (path: string) => Promise<{ mode: number }>;
+  writeFile: (
+    path: string,
+    data: string,
+    options: { encoding: BufferEncoding; mode: number },
+  ) => Promise<void>;
+  rename: (oldPath: string, newPath: string) => Promise<void>;
+  rm: (path: string, options: { force: boolean }) => Promise<void>;
+};
+
+const defaultFs: FileWriteFs = {
+  readFile,
+  stat,
+  writeFile,
+  rename,
+  rm,
 };
 
 export async function writeFileIfUnchangedAtomically(
   input: WriteFileIfUnchangedAtomicallyInput,
 ): Promise<void> {
+  const fs = input.fs ?? defaultFs;
+
   let currentText: string;
   try {
-    currentText = await readFile(input.filePath, input.encoding);
+    currentText = await fs.readFile(input.filePath, input.encoding);
   } catch {
     throw buildStaleApplyError(input.filePath, input.operationName);
   }
@@ -23,23 +46,23 @@ export async function writeFileIfUnchangedAtomically(
     throw buildStaleApplyError(input.filePath, input.operationName);
   }
 
-  let fileStats: Awaited<ReturnType<typeof stat>>;
+  let fileStats: { mode: number };
   try {
-    fileStats = await stat(input.filePath);
+    fileStats = await fs.stat(input.filePath);
   } catch {
     throw buildStaleApplyError(input.filePath, input.operationName);
   }
 
   const tempPath = buildAtomicTempPath(input.filePath);
-  await writeFile(tempPath, input.rewrittenText, {
+  await fs.writeFile(tempPath, input.rewrittenText, {
     encoding: input.encoding,
     mode: fileStats.mode,
   });
 
   try {
-    await rename(tempPath, input.filePath);
+    await fs.rename(tempPath, input.filePath);
   } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => undefined);
+    await fs.rm(tempPath, { force: true }).catch(() => undefined);
     throw error;
   }
 }
