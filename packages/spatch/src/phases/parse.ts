@@ -1,5 +1,5 @@
-import { resolveTextInput } from "@claudiu-ceia/astkit-core";
-import { parsePatchDocument } from "../patch-document.ts";
+import { parseTextInvocation } from "@claudiu-ceia/astkit-core";
+import { parsePatchDocument } from "./patch-document.ts";
 import type { SpatchOptions } from "../types.ts";
 
 export type ParsedPatchSpec = {
@@ -24,10 +24,14 @@ export async function parsePatchInvocation(
   patchInput: string,
   options: SpatchOptions = {},
 ): Promise<ParsedPatchInvocation> {
-  const patchDocument = await resolveTextInput(patchInput, options);
+  const invocation = await parseTextInvocation(
+    patchInput,
+    options,
+    parsePatchSpec,
+  );
 
   return {
-    patch: parsePatchSpec(patchDocument),
-    options,
+    patch: invocation.spec,
+    options: invocation.options,
   };
 }

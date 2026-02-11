@@ -6,6 +6,11 @@ export type ResolveTextInputOptions = {
   encoding?: BufferEncoding;
 };
 
+export type ResolvedTextInvocation<TSpec, TOptions extends ResolveTextInputOptions> = {
+  spec: TSpec;
+  options: TOptions;
+};
+
 export async function resolveTextInput(
   input: string,
   options: ResolveTextInputOptions = {},
@@ -30,6 +35,21 @@ export async function resolveTextInput(
     }
     throw error;
   }
+}
+
+export async function parseTextInvocation<
+  TSpec,
+  TOptions extends ResolveTextInputOptions,
+>(
+  input: string,
+  options: TOptions,
+  parseSpec: (text: string) => TSpec,
+): Promise<ResolvedTextInvocation<TSpec, TOptions>> {
+  const text = await resolveTextInput(input, options);
+  return {
+    spec: parseSpec(text),
+    options,
+  };
 }
 
 function isErrorWithCode(error: unknown): error is { code: string } {

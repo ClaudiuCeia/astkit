@@ -3,7 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
-import { formatPatchOutput, runPatchCommand } from "../src/command.ts";
+import {
+  formatPatchOutput,
+  runPatchCommand,
+  validatePatchCommandFlags,
+} from "../src/command.ts";
 import type { SpatchResult } from "../src/types.ts";
 
 test("runPatchCommand applies patch document string in scope", async () => {
@@ -173,6 +177,32 @@ test("runPatchCommand rejects --interactive with --dry-run", async () => {
   }
 
   expect(thrown).toBeInstanceOf(Error);
+});
+
+test("runPatchCommand validates flag combinations before reading patch input", async () => {
+  let readStdinCalls = 0;
+
+  await expect(
+    runPatchCommand(
+      "-",
+      ".",
+      { interactive: true, "dry-run": true },
+      {
+        readStdin: async () => {
+          readStdinCalls += 1;
+          throw new Error("stdin should not be read for invalid flag combination");
+        },
+      },
+    ),
+  ).rejects.toThrow("Cannot combine --interactive with --dry-run.");
+
+  expect(readStdinCalls).toBe(0);
+});
+
+test("validatePatchCommandFlags rejects --interactive with --dry-run", () => {
+  expect(() =>
+    validatePatchCommandFlags({ interactive: true, "dry-run": true }),
+  ).toThrow("Cannot combine --interactive with --dry-run.");
 });
 
 test("formatPatchOutput renders compact diff-like output", () => {

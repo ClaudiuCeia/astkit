@@ -50,6 +50,8 @@ export async function runPatchCommand(
   flags: PatchCommandFlags,
   options: RunPatchCommandOptions = {},
 ): Promise<SpatchResult> {
+  validatePatchCommandFlags(flags);
+
   const patchScope = scope ?? ".";
   const patchCwd = flags.cwd;
   const resolvedPatchInput = await resolvePatchInput(
@@ -62,10 +64,6 @@ export async function runPatchCommand(
   );
 
   if (flags.interactive ?? false) {
-    if (flags["dry-run"] ?? false) {
-      throw new Error("Cannot combine --interactive with --dry-run.");
-    }
-
     return runInteractivePatchCommand(
       resolvedPatchInput,
       patchScope,
@@ -190,36 +188,28 @@ export const patchCommand = buildCommand({
         },
       },
       interactive: {
-        kind: "parsed" as const,
+        kind: "boolean" as const,
         optional: true,
+        withNegated: false,
         brief: "Interactively select which matches to apply",
-        placeholder: "bool",
-        inferEmpty: true,
-        parse: parseFlagBoolean,
       },
       json: {
-        kind: "parsed" as const,
+        kind: "boolean" as const,
         optional: true,
+        withNegated: false,
         brief: "Output structured JSON instead of compact diff-style text",
-        placeholder: "bool",
-        inferEmpty: true,
-        parse: parseFlagBoolean,
       },
       "no-color": {
-        kind: "parsed" as const,
+        kind: "boolean" as const,
         optional: true,
+        withNegated: false,
         brief: "Disable colored output",
-        placeholder: "bool",
-        inferEmpty: true,
-        parse: parseFlagBoolean,
       },
       "dry-run": {
-        kind: "parsed" as const,
+        kind: "boolean" as const,
         optional: true,
+        withNegated: false,
         brief: "Preview changes without writing files",
-        placeholder: "bool",
-        inferEmpty: true,
-        parse: parseFlagBoolean,
       },
       cwd: {
         kind: "parsed" as const,
@@ -251,30 +241,9 @@ export const patchCommand = buildCommand({
   },
 });
 
-function parseFlagBoolean(input: string): boolean {
-  // For flags declared with `inferEmpty: true`, Stricli passes "" when the flag
-  // is present with no explicit value (e.g. `--json`).
-  if (input === "") {
-    return true;
-  }
-
-  switch (input.toLowerCase()) {
-    case "1":
-    case "true":
-    case "t":
-    case "yes":
-    case "y":
-    case "on":
-      return true;
-    case "0":
-    case "false":
-    case "f":
-    case "no":
-    case "n":
-    case "off":
-      return false;
-    default:
-      throw new Error(`Expected boolean value, got: ${JSON.stringify(input)}`);
+export function validatePatchCommandFlags(flags: PatchCommandFlags): void {
+  if ((flags.interactive ?? false) && (flags["dry-run"] ?? false)) {
+    throw new Error("Cannot combine --interactive with --dry-run.");
   }
 }
 

@@ -1,4 +1,4 @@
-import { resolveTextInput } from "@claudiu-ceia/astkit-core";
+import { parseTextInvocation } from "@claudiu-ceia/astkit-core";
 import type { SgrepOptions } from "../types.ts";
 
 export type ParsedSearchSpec = {
@@ -18,10 +18,14 @@ export async function parseSearchInvocation(
   patternInput: string,
   options: SgrepOptions = {},
 ): Promise<ParsedSearchInvocation> {
-  const pattern = await resolveTextInput(patternInput, options);
+  const invocation = await parseTextInvocation(
+    patternInput,
+    options,
+    parseSearchSpec,
+  );
 
   return {
-    search: parseSearchSpec(pattern),
-    options,
+    search: invocation.spec,
+    options: invocation.options,
   };
 }
