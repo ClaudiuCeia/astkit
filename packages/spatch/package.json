@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/spatch",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Structural patcher for TS/JS using a patch-document template format.",
   "license": "MIT",
   "bin": {
@@ -33,7 +33,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@claudiu-ceia/astkit-core": "^0.2.0",
+    "@claudiu-ceia/astkit-core": "^0.2.1",
     "@claudiu-ceia/combine": "^0.2.6",
     "@stricli/core": "^1.2.5",
     "chalk": "^5.6.2"
