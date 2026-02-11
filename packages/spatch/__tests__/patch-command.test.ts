@@ -858,8 +858,10 @@ test("patchCommand loader writes JSON output and passes --check when no replacem
 
   try {
     const target = path.join(workspace, "sample.ts");
-    await writeFile(target, "const value = 1;\n", "utf8");
-    const noOpPatch = ["-const :[name] = :[value];", "+const :[name] = :[value];"].join("\n");
+    await writeFile(target, 'import { dot } from "./common.ts";\n', "utf8");
+    const noOpPatch = ["-import{:[name]}from:[module];", "+import{:[name]}from:[module];"].join(
+      "\n",
+    );
 
     const execute = await resolvePatchCommandExecutor();
     let stdoutText = "";
@@ -959,10 +961,10 @@ test("cli --check exits zero when no replacements are needed", async () => {
   try {
     const target = path.join(workspace, "sample.ts");
     const patchFile = path.join(workspace, "rule.spatch");
-    await writeFile(target, "const value = 1;\n", "utf8");
+    await writeFile(target, 'import { dot } from "./common.ts";\n', "utf8");
     await writeFile(
       patchFile,
-      ["-const :[name] = :[value];", "+const :[name] = :[value];", ""].join("\n"),
+      ["-import{:[name]}from:[module];", "+import{:[name]}from:[module];", ""].join("\n"),
       "utf8",
     );
 
@@ -984,7 +986,7 @@ test("cli --check exits zero when no replacements are needed", async () => {
 
     expect(cli.exitCode).toBe(0);
     expect(new TextDecoder().decode(cli.stderr)).toBe("");
-    expect(await readFile(target, "utf8")).toBe("const value = 1;\n");
+    expect(await readFile(target, "utf8")).toBe('import { dot } from "./common.ts";\n');
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }

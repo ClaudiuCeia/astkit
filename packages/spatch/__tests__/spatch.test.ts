@@ -58,6 +58,30 @@ test("patchProject dry run does not write files", async () => {
   }
 });
 
+test("patchProject no-op rewrite preserves source formatting and reports zero replacements", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "sample.ts");
+    const original = 'import { dot } from "./common.ts";\n';
+    await writeFile(file, original, "utf8");
+
+    const patch = ["-import{:[name]}from:[module];", "+import{:[name]}from:[module];"].join("\n");
+
+    const result = await patchProject(patch, {
+      cwd: workspace,
+      scope: workspace,
+    });
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.totalReplacements).toBe(0);
+    expect(result.filesChanged).toBe(0);
+    expect(await readFile(file, "utf8")).toBe(original);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("patchProject aborts non-interactive apply when file changes before write", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
 

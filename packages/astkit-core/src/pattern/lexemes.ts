@@ -12,6 +12,23 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 
+type LexemeScanPart =
+  | {
+      kind: "trivia";
+      value: string;
+    }
+  | {
+      kind: "lexeme";
+      value: string;
+    };
+
+export type LexemeLayout = {
+  leadingTrivia: string;
+  lexemes: string[];
+  separators: string[];
+  trailingTrivia: string;
+};
+
 const MULTI_CHAR_OPERATORS = [
   ">>>=",
   "===",
@@ -99,23 +116,62 @@ const lexemeScannerParser = map(
   seq(
     many(
       any(
-        map(triviaParser, () => null as string | null),
-        map(lexemeParser, (lexeme) => lexeme),
+        map(triviaParser, (value) => ({ kind: "trivia", value }) satisfies LexemeScanPart),
+        map(lexemeParser, (value) => ({ kind: "lexeme", value }) satisfies LexemeScanPart),
       ),
     ),
     eof(),
   ),
-  ([parts]) => parts.filter((part): part is string => part !== null),
+  ([parts]) => parts,
 );
 
 const triviaPrefixPattern = /^(?:\s+|\/\/[^\n\r]*|\/\*[\s\S]*?\*\/)/;
 
 export function collectLiteralLexemes(source: string): string[] {
-  const parsed = lexemeScannerParser({ text: source, index: 0 });
-  if (!parsed.success) {
+  const layout = analyzeLexemeLayout(source);
+  if (!layout) {
     return [];
   }
-  return parsed.value;
+  return layout.lexemes;
+}
+
+export function analyzeLexemeLayout(source: string): LexemeLayout | null {
+  const parsed = lexemeScannerParser({ text: source, index: 0 });
+  if (!parsed.success) {
+    return null;
+  }
+
+  const lexemes: string[] = [];
+  const separators: string[] = [];
+  let leadingTrivia = "";
+  let trailingTrivia = "";
+  let pendingTrivia = "";
+  let sawLexeme = false;
+
+  for (const part of parsed.value) {
+    if (part.kind === "trivia") {
+      pendingTrivia += part.value;
+      continue;
+    }
+
+    if (!sawLexeme) {
+      leadingTrivia = pendingTrivia;
+      sawLexeme = true;
+    } else {
+      separators.push(pendingTrivia);
+    }
+    pendingTrivia = "";
+    lexemes.push(part.value);
+  }
+
+  trailingTrivia = pendingTrivia;
+
+  return {
+    leadingTrivia,
+    lexemes,
+    separators,
+    trailingTrivia,
+  };
 }
 
 export function skipTrivia(source: string, fromIndex: number): number {
@@ -163,7 +219,11 @@ function trimTrailingTriviaFromChunk(source: string): string {
 }
 
 export function hasTrailingTrivia(source: string): boolean {
-  return trimTrailingTriviaFromChunk(source).length < source.length;
+  const layout = analyzeLexemeLayout(source);
+  if (!layout) {
+    return false;
+  }
+  return layout.trailingTrivia.length > 0;
 }
 
 function trimLeadingWhitespace(source: string, fromIndex: number, toIndex: number): number {

@@ -145,3 +145,35 @@ test("compileTemplate rejects templates that only contain trivia", () => {
     "Template must include at least one literal character to avoid empty matches.",
   );
 });
+
+test("renderTemplate preserves source trivia layout for lexical rewrites", () => {
+  const rendered = renderTemplate(
+    "let :[name] = :[value] ;",
+    {
+      name: "value",
+      value: "1",
+    },
+    {
+      preserveLayoutFrom: " const   value = 1 ; // keep\n",
+    },
+  );
+
+  expect(rendered).toBe(" let   value = 1 ; // keep\n");
+});
+
+test("renderTemplate returns original source for lexeme-equivalent rewrite", () => {
+  const source = 'import { dot } from "./common.ts";\n';
+
+  const rendered = renderTemplate(
+    "import{:[name]}from:[module];",
+    {
+      name: "dot",
+      module: '"./common.ts"',
+    },
+    {
+      preserveLayoutFrom: source,
+    },
+  );
+
+  expect(rendered).toBe(source);
+});

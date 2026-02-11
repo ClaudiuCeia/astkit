@@ -248,7 +248,9 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
   const lineStarts = createLineStarts(originalText);
   const renderStarted = input.stats ? nowNs() : 0n;
   const occurrences = matches.map((match) => {
-    const rendered = renderCompiledTemplate(patchVariant.compiledReplacement, match.captures);
+    const rendered = renderCompiledTemplate(patchVariant.compiledReplacement, match.captures, {
+      preserveLayoutFrom: match.text,
+    });
     const { line, character } = toLineCharacter(lineStarts, match.start);
     return {
       start: match.start,
