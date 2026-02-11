@@ -8,6 +8,7 @@ type Variant = {
   pattern: string;
 };
 
+/** Expands a pattern with configured isomorphism rules, deduplicated and bounded. */
 export function expandPatternIsomorphisms(
   pattern: string,
   options: ExpandIsomorphismsOptions = {},

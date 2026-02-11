@@ -3,6 +3,7 @@ import chalk, { Chalk, type ChalkInstance } from "chalk";
 import { searchProject } from "./sgrep.ts";
 import type { SgrepResult } from "./types.ts";
 
+/** CLI-facing flags accepted by `searchCommand`. */
 export type SearchCommandFlags = {
   cwd?: string;
   "no-isomorphisms"?: boolean;
@@ -12,6 +13,7 @@ export type SearchCommandFlags = {
   verbose?: number;
 };
 
+/** Maps CLI positional/flag arguments into a `searchProject` invocation. */
 export async function runSearchCommand(
   patternInput: string,
   scope: string | undefined,
@@ -32,6 +34,7 @@ type FormatSearchOutputOptions = {
   chalkInstance?: ChalkInstance;
 };
 
+/** Formats `SgrepResult` into compact terminal text output. */
 export function formatSearchOutput(
   result: SgrepResult,
   options: FormatSearchOutputOptions = {},
@@ -241,6 +244,7 @@ function appearsExactlyOnce(text: string, needle: string): boolean {
   return text.indexOf(needle, first + needle.length) < 0;
 }
 
+/** `stricli` command definition for `sgrep`. */
 export const searchCommand = buildCommand({
   async func(
     this: { process: { stdout: { write(s: string): void } } },
