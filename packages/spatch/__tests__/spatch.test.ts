@@ -138,6 +138,30 @@ test("patchProject atomic write leaves no temporary files behind", async () => {
   }
 });
 
+test("patchProject verbose=2 logs slow-file entries", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
+
+  try {
+    const file = path.join(workspace, "sample.ts");
+    await writeFile(file, "const value = 1;\n", "utf8");
+    const logs: string[] = [];
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await patchProject(patch, {
+      cwd: workspace,
+      scope: workspace,
+      verbose: 2,
+      logger: (line) => logs.push(line),
+    });
+
+    expect(result.totalReplacements).toBe(1);
+    expect(logs.some((line) => line.includes("[spatch] slowFile"))).toBe(true);
+    expect(logs.some((line) => line.includes("[spatch] summary"))).toBe(true);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("patchProject rejects scope outside nearest git repository root", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
   const outside = await mkdtemp(path.join(tmpdir(), "spatch-outside-"));

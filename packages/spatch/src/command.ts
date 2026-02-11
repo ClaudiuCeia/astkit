@@ -27,6 +27,15 @@ export type RunPatchCommandOptions = {
    * be read from the current process.
    */
   readStdin?: () => Promise<string>;
+  /**
+   * Optional stream source for stdin patch input. Ignored when `readStdin` is
+   * provided. Defaults to process stdin.
+   */
+  stdinStream?: ReadableTextStream;
+};
+
+export type ReadableTextStream = AsyncIterable<unknown> & {
+  setEncoding?(encoding: BufferEncoding): void;
 };
 
 export async function runPatchCommand(
@@ -46,6 +55,7 @@ export async function runPatchCommand(
     cwd: patchCwd,
     encoding: "utf8",
     readStdin: options.readStdin,
+    stdinStream: options.stdinStream,
   });
   const patchOptions: SpatchOptions = {
     concurrency: flags.concurrency,
@@ -129,13 +139,20 @@ function enforceCheckMode(flags: PatchCommandFlags, result: SpatchResult): void 
 
 async function resolvePatchInput(
   patchInput: string,
-  options: { cwd: string | undefined; encoding: BufferEncoding; readStdin?: () => Promise<string> },
+  options: {
+    cwd: string | undefined;
+    encoding: BufferEncoding;
+    readStdin?: () => Promise<string>;
+    stdinStream?: ReadableTextStream;
+  },
 ): Promise<string> {
   if (patchInput !== "-") {
     return await resolveTextInput(patchInput, { cwd: options.cwd, encoding: options.encoding });
   }
 
-  const reader = options.readStdin ?? (() => readAllFromStdin(options.encoding));
+  const reader =
+    options.readStdin ??
+    (() => readAllFromStream(options.stdinStream ?? processStdin, options.encoding));
   const text = await reader();
   if (text.length === 0) {
     throw new Error("Patch document read from stdin was empty.");
@@ -143,14 +160,14 @@ async function resolvePatchInput(
   return text;
 }
 
-async function readAllFromStdin(encoding: BufferEncoding): Promise<string> {
-  // Read raw patch document from stdin (e.g. `cat rule.spatch | spatch - src`).
-  // `node:process` stdin is a stream in both Node and Bun.
-  const stdin = processStdin;
-  stdin.setEncoding(encoding);
+export async function readAllFromStream(
+  stream: ReadableTextStream,
+  encoding: BufferEncoding,
+): Promise<string> {
+  stream.setEncoding?.(encoding);
 
   let text = "";
-  for await (const chunk of stdin) {
+  for await (const chunk of stream) {
     text += String(chunk);
   }
   return text;

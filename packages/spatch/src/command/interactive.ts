@@ -33,6 +33,24 @@ export type RunInteractivePatchCommandOptions = Pick<
   interactiveDecider?: InteractiveDecider;
 };
 
+export type PromptInterface = {
+  question(prompt: string): Promise<string>;
+  close(): void;
+};
+
+export type TerminalInteractiveDependencies = {
+  stdin: { isTTY?: boolean };
+  stdout: { isTTY?: boolean; write(chunk: string): void };
+  createPrompt: (options: { input: unknown; output: unknown }) => PromptInterface;
+};
+
+const defaultTerminalInteractiveDependencies: TerminalInteractiveDependencies = {
+  stdin: processStdin,
+  stdout: processStdout,
+  createPrompt: ({ input, output }) =>
+    createInterface({ input: input as any, output: output as any }),
+};
+
 export async function runInteractivePatchCommand(
   patchInput: string,
   options: RunInteractivePatchCommandOptions,
@@ -229,22 +247,25 @@ type PreparedInteractiveFile = {
   selected: SpatchOccurrence[];
 };
 
-async function createTerminalInteractiveDecider(noColor: boolean): Promise<{
+export async function createTerminalInteractiveDecider(
+  noColor: boolean,
+  dependencies: TerminalInteractiveDependencies = defaultTerminalInteractiveDependencies,
+): Promise<{
   decider: InteractiveDecider;
   close: () => void;
 }> {
   const chalkInstance = buildChalk({
-    color: processStdout.isTTY && !noColor,
+    color: Boolean(dependencies.stdout.isTTY) && !noColor,
   });
   const useColor = chalkInstance.level > 0;
-  const rl = createInterface({
-    input: processStdin,
-    output: processStdout,
+  const rl = dependencies.createPrompt({
+    input: dependencies.stdin,
+    output: dependencies.stdout,
   });
 
   return {
     decider: async ({ file, occurrence, changeNumber, totalChanges }) => {
-      processStdout.write(
+      dependencies.stdout.write(
         `\n${formatInteractiveChangeBlock(
           { file, occurrence, changeNumber, totalChanges },
           {
@@ -265,7 +286,7 @@ async function createTerminalInteractiveDecider(noColor: boolean): Promise<{
           return parsed;
         }
 
-        processStdout.write(
+        dependencies.stdout.write(
           useColor
             ? `${chalkInstance.yellow("Invalid choice.")} Use y, n, a, or q.\n`
             : "Invalid choice. Use y, n, a, or q.\n",
@@ -276,7 +297,7 @@ async function createTerminalInteractiveDecider(noColor: boolean): Promise<{
   };
 }
 
-function formatInteractiveChangeBlock(
+export function formatInteractiveChangeBlock(
   ctx: InteractiveContext,
   options: FormatPatchOutputOptions = {},
 ): string {
@@ -311,7 +332,7 @@ function formatInteractiveChangeBlock(
   return lines.join("\n");
 }
 
-function parseInteractiveChoice(answer: string): InteractiveChoice | null {
+export function parseInteractiveChoice(answer: string): InteractiveChoice | null {
   const normalized = answer.trim().toLowerCase();
   if (normalized.length === 0 || normalized === "n" || normalized === "no") {
     return "no";

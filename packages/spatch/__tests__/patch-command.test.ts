@@ -2,10 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { Chalk } from "chalk";
 import {
   formatPatchOutput,
   patchCommand,
+  readAllFromStream,
   runPatchCommand,
   validatePatchCommandFlags,
 } from "../src/command.ts";
@@ -92,6 +94,46 @@ test("runPatchCommand can read patch document from stdin when patchInput is '-'"
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
+});
+
+test("runPatchCommand can read patch document from provided stdin stream", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const target = path.join(workspace, "sample.ts");
+    await writeFile(target, "const value = 1;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+    const stream = Readable.from([patch]);
+
+    const result = await runPatchCommand(
+      "-",
+      workspace,
+      { cwd: workspace },
+      { stdinStream: stream },
+    );
+
+    expect(result.totalMatches).toBe(1);
+    expect(result.filesChanged).toBe(1);
+    expect(await readFile(target, "utf8")).toBe("let value = 1;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("readAllFromStream applies encoding and concatenates chunks", async () => {
+  const stream = Readable.from([Buffer.from("first "), Buffer.from("second")]);
+  const setEncodingCalls: BufferEncoding[] = [];
+  const originalSetEncoding = stream.setEncoding.bind(stream);
+  stream.setEncoding = ((encoding: BufferEncoding) => {
+    setEncodingCalls.push(encoding);
+    return originalSetEncoding(encoding);
+  }) as typeof stream.setEncoding;
+
+  const text = await readAllFromStream(stream, "utf8");
+
+  expect(text).toBe("first second");
+  expect(setEncodingCalls).toEqual(["utf8"]);
 });
 
 test("runPatchCommand rejects empty patch document from stdin", async () => {
