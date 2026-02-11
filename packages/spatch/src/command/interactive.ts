@@ -136,6 +136,31 @@ export async function runInteractivePatchCommand(
   const fileResults: SpatchFileResult[] = [];
   let filesChanged = 0;
   let totalReplacements = 0;
+  const preparedByFile = new Map<string, PreparedInteractiveFile>();
+
+  for (const file of dryResult.files) {
+    const selected = selectedByFile.get(file.file) ?? [];
+    if (selected.length === 0) {
+      continue;
+    }
+
+    const absolutePath = path.resolve(cwd ?? process.cwd(), file.file);
+    const originalText = await readFile(absolutePath, "utf8");
+    validateSelectedOccurrences(file.file, originalText, selected);
+    const rewrittenText = applySelectedOccurrences(originalText, selected);
+    const changed = rewrittenText !== originalText;
+    const replacementCount = selected.filter(
+      (occurrence) => occurrence.matched !== occurrence.replacement,
+    ).length;
+    preparedByFile.set(file.file, {
+      absolutePath,
+      originalText,
+      rewrittenText,
+      changed,
+      replacementCount,
+      selected,
+    });
+  }
 
   for (const file of dryResult.files) {
     const selected = selectedByFile.get(file.file) ?? [];
@@ -150,33 +175,30 @@ export async function runInteractivePatchCommand(
       continue;
     }
 
-    const absolutePath = path.resolve(cwd ?? process.cwd(), file.file);
-    const originalText = await readFile(absolutePath, "utf8");
-    const rewrittenText = applySelectedOccurrences(originalText, selected);
-    const changed = rewrittenText !== originalText;
-
-    if (changed) {
-      await writeFile(absolutePath, rewrittenText, "utf8");
+    const prepared = preparedByFile.get(file.file);
+    if (!prepared) {
+      throw new Error(`Missing prepared interactive rewrite state for ${file.file}`);
     }
 
-    const replacementCount = selected.filter(
-      (occurrence) => occurrence.matched !== occurrence.replacement,
-    ).length;
-    totalReplacements += replacementCount;
-    if (changed) {
-      filesChanged += 1;
+    if (prepared.changed) {
+      await writeFile(prepared.absolutePath, prepared.rewrittenText, "utf8");
     }
 
     fileResults.push({
       ...file,
-      replacementCount,
-      changed,
-      byteDelta: changed
-        ? Buffer.byteLength(rewrittenText, "utf8") -
-          Buffer.byteLength(originalText, "utf8")
+      replacementCount: prepared.replacementCount,
+      changed: prepared.changed,
+      byteDelta: prepared.changed
+        ? Buffer.byteLength(prepared.rewrittenText, "utf8") -
+          Buffer.byteLength(prepared.originalText, "utf8")
         : 0,
-      occurrences: selected,
+      occurrences: prepared.selected,
     });
+
+    totalReplacements += prepared.replacementCount;
+    if (prepared.changed) {
+      filesChanged += 1;
+    }
   }
 
   return {
@@ -188,6 +210,15 @@ export async function runInteractivePatchCommand(
     files: fileResults,
   };
 }
+
+type PreparedInteractiveFile = {
+  absolutePath: string;
+  originalText: string;
+  rewrittenText: string;
+  changed: boolean;
+  replacementCount: number;
+  selected: SpatchOccurrence[];
+};
 
 function applySelectedOccurrences(
   source: string,
@@ -310,4 +341,39 @@ function parseInteractiveChoice(answer: string): InteractiveChoice | null {
   }
 
   return null;
+}
+
+function validateSelectedOccurrences(
+  file: string,
+  source: string,
+  occurrences: readonly SpatchOccurrence[],
+): void {
+  const sorted = [...occurrences].sort((left, right) => left.start - right.start);
+  let cursor = 0;
+
+  for (const occurrence of sorted) {
+    if (
+      occurrence.start < 0 ||
+      occurrence.end < occurrence.start ||
+      occurrence.end > source.length
+    ) {
+      throw new Error(
+        `File changed during interactive patch selection: ${file}. Re-run spatch interactive to refresh match positions.`,
+      );
+    }
+    if (occurrence.start < cursor) {
+      throw new Error(
+        `Invalid overlapping interactive occurrences for ${file}. Re-run spatch interactive.`,
+      );
+    }
+
+    const currentMatched = source.slice(occurrence.start, occurrence.end);
+    if (currentMatched !== occurrence.matched) {
+      throw new Error(
+        `File changed during interactive patch selection: ${file}. Re-run spatch interactive to refresh match positions.`,
+      );
+    }
+
+    cursor = occurrence.end;
+  }
 }

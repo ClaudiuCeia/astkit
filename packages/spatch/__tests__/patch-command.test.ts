@@ -163,6 +163,47 @@ test("runPatchCommand interactive decider receives progress metadata", async () 
   }
 });
 
+test("runPatchCommand interactive aborts when file changes before apply and avoids partial writes", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const firstFile = path.join(workspace, "a.ts");
+    const secondFile = path.join(workspace, "b.ts");
+    await writeFile(firstFile, "const first = 1;\n", "utf8");
+    await writeFile(secondFile, "const second = 2;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join(
+      "\n",
+    );
+
+    const externallyMutatedSecond = "/* external edit */\nconst second = 2;\n";
+    let mutated = false;
+
+    await expect(
+      runPatchCommand(
+        patch,
+        ".",
+        { interactive: true, cwd: workspace },
+        {
+          interactiveDecider: async () => {
+            if (!mutated) {
+              mutated = true;
+              await writeFile(secondFile, externallyMutatedSecond, "utf8");
+            }
+            return "yes";
+          },
+        },
+      ),
+    ).rejects.toThrow("File changed during interactive patch selection");
+
+    // No partial apply should happen on other files.
+    expect(await readFile(firstFile, "utf8")).toBe("const first = 1;\n");
+    expect(await readFile(secondFile, "utf8")).toBe(externallyMutatedSecond);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand rejects --interactive with --dry-run", async () => {
   let thrown: unknown = null;
 
