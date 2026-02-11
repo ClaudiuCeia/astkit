@@ -6,7 +6,6 @@ const DEFAULT_MAX_ISOMORPHISM_VARIANTS = 24;
 
 type Variant = {
   pattern: string;
-  applied: readonly string[];
 };
 
 export function expandPatternIsomorphisms(
@@ -23,7 +22,7 @@ export function expandPatternIsomorphisms(
   }
 
   const maxVariants = normalizeMaxVariants(options.maxVariants);
-  const variants: Variant[] = [{ pattern, applied: [] }];
+  const variants: Variant[] = [{ pattern }];
   const seenPatterns = new Set<string>([pattern]);
 
   for (
@@ -51,7 +50,6 @@ export function expandPatternIsomorphisms(
         seenPatterns.add(nextPattern);
         variants.push({
           pattern: nextPattern,
-          applied: [...current.applied, rule.id],
         });
         if (variants.length >= maxVariants) {
           break;
