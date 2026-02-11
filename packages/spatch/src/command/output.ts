@@ -76,19 +76,18 @@ export function buildChalk(options: FormatPatchOutputOptions): ChalkInstance {
 export function splitDiffLines(text: string): string[] {
   const normalized = text.replaceAll("\r\n", "\n");
   if (normalized.length === 0) {
-    return [""];
+    return [];
+  }
+
+  if (normalized.endsWith("\n")) {
+    return normalized.slice(0, -1).split("\n");
   }
 
   return normalized.split("\n");
 }
 
 export function countLines(text: string): number {
-  const normalized = text.replaceAll("\r\n", "\n");
-  if (normalized.length === 0) {
-    return 0;
-  }
-
-  return normalized.split("\n").length;
+  return splitDiffLines(text).length;
 }
 
 function pluralize(word: string, count: number): string {

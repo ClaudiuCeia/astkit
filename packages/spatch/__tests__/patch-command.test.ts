@@ -306,3 +306,49 @@ test("formatPatchOutput supports no-change summary", () => {
   expect(output).toContain("0 files changed, 0 replacements, (dry-run)");
   expect(output).toContain("\u001b[");
 });
+
+test("formatPatchOutput uses logical line counts for newline-terminated chunks", () => {
+  const result: SpatchResult = {
+    dryRun: true,
+    scope: "/tmp/workspace/src",
+    pattern: "const :[name] = :[value];\n",
+    replacement: "let :[name] = :[value];\n",
+    filesScanned: 1,
+    filesMatched: 1,
+    filesChanged: 1,
+    totalMatches: 1,
+    totalReplacements: 1,
+    elapsedMs: 1,
+    files: [
+      {
+        file: "src/sample.ts",
+        matchCount: 1,
+        replacementCount: 1,
+        changed: true,
+        byteDelta: -2,
+        occurrences: [
+          {
+            start: 0,
+            end: 15,
+            line: 3,
+            character: 1,
+            matched: "const foo = 42;\n",
+            replacement: "let foo = 42;\n",
+            captures: {
+              name: "foo",
+              value: "42",
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const output = formatPatchOutput(result, {
+    color: false,
+  });
+
+  expect(output).toContain("@@ -3,1 +3,1 @@");
+  expect(output).not.toContain("\n-\n");
+  expect(output).not.toContain("\n+\n");
+});
