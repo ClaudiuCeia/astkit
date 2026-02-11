@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/astkit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Structural navigation, search, and rewrite tooling for TypeScript/JavaScript repositories.",
   "license": "MIT",
   "repository": {
@@ -49,7 +49,7 @@
   "dependencies": {
     "@claudiu-ceia/nav": "^0.2.0",
     "@claudiu-ceia/sgrep": "^0.2.0",
-    "@claudiu-ceia/spatch": "^0.2.0",
+    "@claudiu-ceia/spatch": "^0.3.0",
     "@stricli/core": "^1.2.5"
   },
   "peerDependencies": {

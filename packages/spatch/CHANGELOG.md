@@ -1,5 +1,11 @@
 # @claudiu-ceia/spatch
 
+## 0.3.0
+
+### Minor Changes
+
+- 6cabe90: Support reading patch documents from stdin when patch input is `-`.
+
 ## 0.2.0
 
 ### Minor Changes
