@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Chalk } from "chalk";
@@ -36,6 +36,68 @@ test("runSearchCommand resolves pattern file from cwd", async () => {
     expect(result.files[0]?.file).toBe("sample.ts");
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runSearchCommand rejects pattern file outside nearest git repository root", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "search-command-outside-"));
+
+  try {
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await writeFile(path.join(workspace, "sample.ts"), "const value = 1;\n", "utf8");
+    await writeFile(path.join(outside, "rule.sgrep"), "const :[name] = :[value];\n", "utf8");
+
+    await expect(
+      runSearchCommand(path.join(outside, "rule.sgrep"), ".", { cwd: workspace }),
+    ).rejects.toThrow("Input path resolves outside repository root");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("runSearchCommand rejects symlinked pattern file escaping nearest git repository root", async () => {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "search-command-outside-"));
+
+  try {
+    await mkdir(path.join(workspace, ".git"), { recursive: true });
+    await writeFile(path.join(workspace, "sample.ts"), "const value = 1;\n", "utf8");
+    await writeFile(path.join(outside, "rule.sgrep"), "const :[name] = :[value];\n", "utf8");
+    await symlink(path.join(outside, "rule.sgrep"), path.join(workspace, "leak.sgrep"));
+
+    await expect(runSearchCommand("leak.sgrep", ".", { cwd: workspace })).rejects.toThrow(
+      "Input path resolves outside repository root",
+    );
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("runSearchCommand rejects pattern file outside cwd when git repository root is unavailable", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
+  const outside = await mkdtemp(path.join(tmpdir(), "search-command-outside-"));
+
+  try {
+    const cwd = path.join(workspace, "sandbox");
+    await mkdir(cwd, { recursive: true });
+    await writeFile(path.join(cwd, "sample.ts"), "const value = 1;\n", "utf8");
+    await writeFile(path.join(outside, "rule.sgrep"), "const :[name] = :[value];\n", "utf8");
+
+    await expect(
+      runSearchCommand(path.join(outside, "rule.sgrep"), ".", {
+        cwd,
+      }),
+    ).rejects.toThrow("Input path resolves outside cwd");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
   }
 });
 
