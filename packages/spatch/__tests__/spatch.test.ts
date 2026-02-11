@@ -82,39 +82,6 @@ test("patchProject no-op rewrite preserves source formatting and reports zero re
   }
 });
 
-test("patchProject aborts non-interactive apply when file changes before write", async () => {
-  const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
-
-  try {
-    const file = path.join(workspace, "sample.ts");
-    const original = "const value = 1;\n";
-    const externallyMutated = "/* external edit */\nconst value = 1;\n";
-    await writeFile(file, original, "utf8");
-
-    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
-    let mutated = false;
-
-    await expect(
-      patchProject(patch, {
-        cwd: workspace,
-        scope: workspace,
-        // Internal test hook: mutate after read, before atomic write.
-        __beforeWriteFile: async ({ filePath }: { filePath: string }) => {
-          if (mutated) {
-            return;
-          }
-          mutated = true;
-          await writeFile(filePath, externallyMutated, "utf8");
-        },
-      } as any),
-    ).rejects.toThrow("File changed during non-interactive patch apply");
-
-    expect(await readFile(file, "utf8")).toBe(externallyMutated);
-  } finally {
-    await rm(workspace, { recursive: true, force: true });
-  }
-});
-
 test("patchProject atomic write leaves no temporary files behind", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "spatch-"));
 

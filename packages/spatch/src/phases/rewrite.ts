@@ -42,16 +42,6 @@ type RewritePerfStats = {
   writeNs: bigint;
 };
 
-type BeforeWriteFileHook = (input: {
-  filePath: string;
-  originalText: string;
-  rewrittenText: string;
-}) => Promise<void> | void;
-
-type InternalRewriteOptions = SpatchOptions & {
-  __beforeWriteFile?: BeforeWriteFileHook;
-};
-
 export async function rewriteProject(
   patch: ParsedPatchSpec,
   options: SpatchOptions,
@@ -63,7 +53,6 @@ export async function rewriteProject(
   const dryRun = options.dryRun ?? false;
   const encoding = options.encoding ?? "utf8";
   const concurrency = options.concurrency ?? 8;
-  const beforeWriteFile = (options as InternalRewriteOptions).__beforeWriteFile;
   const resolvedScope = path.resolve(cwd, scope);
   const repoRoot = await findNearestGitRepoRoot(cwd);
   const scopeBoundary = repoRoot ?? cwd;
@@ -128,7 +117,6 @@ export async function rewriteProject(
         patchVariants,
         encoding,
         dryRun,
-        beforeWriteFile,
         stats: verbose > 0 ? stats : undefined,
       });
       if (verbose >= 2 && fileResult) {
@@ -219,7 +207,6 @@ type RewriteFileInput = {
   >;
   encoding: BufferEncoding;
   dryRun: boolean;
-  beforeWriteFile?: BeforeWriteFileHook;
   stats?: RewritePerfStats;
 };
 
@@ -280,12 +267,6 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
   const changed = rewrittenText !== originalText;
 
   if (changed && !input.dryRun) {
-    await input.beforeWriteFile?.({
-      filePath: input.filePath,
-      originalText,
-      rewrittenText,
-    });
-
     const writeStarted = input.stats ? nowNs() : 0n;
     await writeFileIfUnchangedAtomically({
       filePath: input.filePath,
