@@ -1,7 +1,8 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { writeFileIfUnchangedAtomically } from "../file-write.ts";
 import { applyReplacementSpans } from "../replacement-spans.ts";
 import { patchProject } from "../spatch.ts";
 import type { SpatchFileResult, SpatchOccurrence, SpatchOptions, SpatchResult } from "../types.ts";
@@ -183,7 +184,13 @@ export async function runInteractivePatchCommand(
     }
 
     if (prepared.changed) {
-      await writeFile(prepared.absolutePath, prepared.rewrittenText, encoding);
+      await writeFileIfUnchangedAtomically({
+        filePath: prepared.absolutePath,
+        originalText: prepared.originalText,
+        rewrittenText: prepared.rewrittenText,
+        encoding,
+        operationName: "interactive patch apply",
+      });
     }
 
     fileResults.push({

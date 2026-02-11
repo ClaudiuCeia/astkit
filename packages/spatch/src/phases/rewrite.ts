@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   compileReplacementTemplate,
@@ -17,6 +16,7 @@ import {
   toLineCharacter,
 } from "@claudiu-ceia/astkit-core";
 import { applyReplacementSpans } from "../replacement-spans.ts";
+import { writeFileIfUnchangedAtomically } from "../file-write.ts";
 import type { SpatchFileResult, SpatchOptions } from "../types.ts";
 import type { ParsedPatchSpec } from "./parse.ts";
 
@@ -292,6 +292,7 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
       originalText,
       rewrittenText,
       encoding: input.encoding,
+      operationName: "non-interactive patch apply",
     });
     if (input.stats) {
       input.stats.writeNs += nowNs() - writeStarted;
@@ -335,57 +336,6 @@ async function findNearestGitRepoRoot(startDirectory: string): Promise<string | 
     }
     current = parent;
   }
-}
-
-type AtomicWriteInput = {
-  filePath: string;
-  originalText: string;
-  rewrittenText: string;
-  encoding: BufferEncoding;
-};
-
-async function writeFileIfUnchangedAtomically(input: AtomicWriteInput): Promise<void> {
-  let currentText: string;
-  try {
-    currentText = await readFile(input.filePath, input.encoding);
-  } catch {
-    throw buildStaleApplyError(input.filePath);
-  }
-  if (currentText !== input.originalText) {
-    throw buildStaleApplyError(input.filePath);
-  }
-
-  let fileStats: Awaited<ReturnType<typeof stat>>;
-  try {
-    fileStats = await stat(input.filePath);
-  } catch {
-    throw buildStaleApplyError(input.filePath);
-  }
-
-  const tempPath = buildAtomicTempPath(input.filePath);
-  await writeFile(tempPath, input.rewrittenText, {
-    encoding: input.encoding,
-    mode: fileStats.mode,
-  });
-
-  try {
-    await rename(tempPath, input.filePath);
-  } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => undefined);
-    throw error;
-  }
-}
-
-function buildAtomicTempPath(filePath: string): string {
-  const directory = path.dirname(filePath);
-  const fileName = path.basename(filePath);
-  return path.join(directory, `.${fileName}.spatch-${process.pid}-${randomUUID()}.tmp`);
-}
-
-function buildStaleApplyError(filePath: string): Error {
-  return new Error(
-    `File changed during non-interactive patch apply: ${filePath}. Re-run spatch to avoid overwriting concurrent edits.`,
-  );
 }
 
 function toDisplayFilePath(input: { cwd: string; scopePath: string; filePath: string }): string {
