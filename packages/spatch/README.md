@@ -229,15 +229,12 @@ console.log(result.totalReplacements);
 Exports:
 
 - `patchProject` / `spatch`
-- `runPatchCommand` and `patchCommand` (CLI embedding/tests)
-- `formatPatchOutput`
 - `DEFAULT_PATCHABLE_EXTENSIONS`, `DEFAULT_EXCLUDED_DIRECTORIES`
 
 ## Caveats
 
 - matching is syntactic/structural, not semantic/type-aware
 - comments/whitespace are preserved by lexical slot; when reordering captures, inline comments follow slot position
-- interactive mode validates stale spans before apply, but currently writes selected files directly (non-interactive mode is atomic/stale-safe)
 - very broad patterns can have large blast radius, use `--dry-run` and optionally `--interactive` first
 
 ## Development

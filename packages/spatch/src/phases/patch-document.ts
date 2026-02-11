@@ -13,10 +13,6 @@ import {
 export type ParsedPatchDocument = {
   pattern: string;
   replacement: string;
-  additions: number;
-  deletions: number;
-  contextLines: number;
-  trailingNewline: boolean;
 };
 
 type ParsedPatchLine =
@@ -64,10 +60,7 @@ const patchDocumentParser = map(
     optional(str("\n")),
     eof(),
   ),
-  ([firstLine, remainingLines, trailingNewline]) => ({
-    lines: [firstLine, ...remainingLines],
-    trailingNewline: trailingNewline !== null,
-  }),
+  ([firstLine, remainingLines]) => [firstLine, ...remainingLines],
 );
 
 export function parsePatchDocument(source: string): ParsedPatchDocument {
@@ -84,23 +77,21 @@ export function parsePatchDocument(source: string): ParsedPatchDocument {
 
   const lines =
     trailingNewline &&
-    parsed.value.lines.length > 0 &&
-    parsed.value.lines[parsed.value.lines.length - 1]?.kind === "context" &&
-    parsed.value.lines[parsed.value.lines.length - 1]?.value === ""
-      ? parsed.value.lines.slice(0, -1)
-      : parsed.value.lines;
+    parsed.value.length > 0 &&
+    parsed.value[parsed.value.length - 1]?.kind === "context" &&
+    parsed.value[parsed.value.length - 1]?.value === ""
+      ? parsed.value.slice(0, -1)
+      : parsed.value;
 
   const patternLines: string[] = [];
   const replacementLines: string[] = [];
   let additions = 0;
   let deletions = 0;
-  let contextLines = 0;
 
   for (const line of lines) {
     if (line.kind === "context") {
       patternLines.push(line.value);
       replacementLines.push(line.value);
-      contextLines += 1;
       continue;
     }
 
@@ -124,9 +115,5 @@ export function parsePatchDocument(source: string): ParsedPatchDocument {
   return {
     pattern: trailingNewline ? `${pattern}\n` : pattern,
     replacement: trailingNewline ? `${replacement}\n` : replacement,
-    additions,
-    deletions,
-    contextLines,
-    trailingNewline,
   };
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { PassThrough } from "node:stream";
 import {
   createTerminalInteractiveDecider,
   formatInteractiveChangeBlock,
@@ -53,15 +54,19 @@ test("createTerminalInteractiveDecider retries invalid input then accepts select
   const prompts: string[] = [];
   const answers = ["invalid", "yes"];
   let closed = false;
+  const stdin = new PassThrough() as PassThrough & { isTTY?: boolean };
+  const stdout = new PassThrough() as PassThrough & { isTTY?: boolean };
+  stdin.isTTY = true;
+  stdout.isTTY = true;
+  const originalWrite = stdout.write.bind(stdout);
+  stdout.write = ((chunk: string | Uint8Array) => {
+    writes.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return originalWrite(chunk);
+  }) as typeof stdout.write;
 
   const prompt = await createTerminalInteractiveDecider(true, {
-    stdin: { isTTY: true },
-    stdout: {
-      isTTY: true,
-      write(chunk: string) {
-        writes.push(chunk);
-      },
-    },
+    stdin,
+    stdout,
     createPrompt: () => ({
       async question(input: string) {
         prompts.push(input);

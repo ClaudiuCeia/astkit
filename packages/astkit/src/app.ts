@@ -5,7 +5,7 @@ import {
   definitionCommand,
   referencesCommand,
 } from "@claudiu-ceia/nav";
-import { patchCommand } from "@claudiu-ceia/spatch";
+import { patchCommand } from "@claudiu-ceia/spatch/internal/command";
 import { searchCommand } from "@claudiu-ceia/sgrep";
 
 function formatCommandException(exc: unknown): string {

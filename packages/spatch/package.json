@@ -21,6 +21,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./internal/command": {
+      "types": "./dist/command.d.ts",
+      "bun": "./src/command.ts",
+      "import": "./dist/command.js",
+      "default": "./dist/command.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

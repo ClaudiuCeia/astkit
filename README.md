@@ -231,15 +231,18 @@ $ astkit search --json 'const :[name] = :[value];' src
 ### `patch` (`spatch`)
 
 ```bash
-astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--json] [--no-color] [--interactive]
+astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--check] [--json] [--no-color] [--interactive] [--concurrency <n>] [--verbose <level>]
 ```
 
 - `patch-input` can be inline patch text or a file path
 - Patch format uses `+`/`-`/context lines in one document
 - Default output is compact diff-style text
+- `--check` exits non-zero if replacements would be made (CI guardrail)
 - `--json` prints structured output
 - `--no-color` disables color in compact output
 - `--interactive` lets you accept/reject each match
+- `--concurrency` controls max files processed in parallel
+- `--verbose` enables perf tracing logs (1=summary, 2=adds slow files)
 
 Example:
 

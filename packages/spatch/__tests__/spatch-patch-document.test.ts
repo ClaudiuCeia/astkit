@@ -18,10 +18,6 @@ test("parsePatchDocument extracts pattern/replacement from +/- lines", () => {
   expect(parsed.replacement).toBe(
     ["function wrap() {", "  let value = 1;", "  return value;", "}"].join("\n"),
   );
-  expect(parsed.additions).toBe(1);
-  expect(parsed.deletions).toBe(1);
-  expect(parsed.contextLines).toBe(3);
-  expect(parsed.trailingNewline).toBe(false);
 });
 
 test("parsePatchDocument preserves escaped +/- context lines", () => {
@@ -40,7 +36,6 @@ test("parsePatchDocument preserves trailing newline", () => {
 
   expect(parsed.pattern).toBe("const x = 1;\n");
   expect(parsed.replacement).toBe("let x = 1;\n");
-  expect(parsed.trailingNewline).toBe(true);
 });
 
 test("parsePatchDocument rejects inputs without change markers", () => {
