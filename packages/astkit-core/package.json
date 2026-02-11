@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/astkit-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared core utilities for astkit packages (pattern matching, file scanning, tracing).",
   "license": "MIT",
   "type": "module",
