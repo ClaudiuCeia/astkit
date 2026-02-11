@@ -1,6 +1,8 @@
 export type TextToken = {
   kind: "text";
   value: string;
+  lexemes?: string[];
+  hasTrailingTrivia?: boolean;
 };
 
 export type EllipsisToken = {

@@ -14,6 +14,7 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
+import { collectLiteralLexemes, hasTrailingTrivia } from "./lexemes.ts";
 import type {
   CompiledTemplate,
   EllipsisToken,
@@ -143,7 +144,11 @@ export function compileTemplate(source: string): CompiledTemplate {
   }
 
   const literalLength = tokens.reduce(
-    (total, token) => total + (token.kind === "text" ? token.value.length : 0),
+    (total, token) =>
+      total +
+      (token.kind === "text"
+        ? (token.lexemes ?? []).reduce((lexemeTotal, lexeme) => lexemeTotal + lexeme.length, 0)
+        : 0),
     0,
   );
   if (literalLength === 0) {
@@ -155,7 +160,12 @@ export function compileTemplate(source: string): CompiledTemplate {
 
 function resolveRawToken(token: RawTemplateToken, nextEllipsisIndex: () => number): TemplateToken {
   if (token.kind === "text") {
-    return token;
+    return {
+      kind: "text",
+      value: token.value,
+      lexemes: collectLiteralLexemes(token.value),
+      hasTrailingTrivia: hasTrailingTrivia(token.value),
+    } satisfies TextToken;
   }
 
   if (token.kind === "ellipsis") {

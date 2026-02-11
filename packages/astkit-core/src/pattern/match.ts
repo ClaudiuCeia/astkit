@@ -1,4 +1,5 @@
 import { isBalancedChunk } from "./balance.ts";
+import { collectLiteralLexemes, skipTrivia, trimTriviaBounds } from "./lexemes.ts";
 import type {
   CompiledTemplate,
   HoleToken,
@@ -16,11 +17,11 @@ type MatchResult = {
 export function findTemplateMatches(text: string, template: CompiledTemplate): TemplateMatch[] {
   const matches: TemplateMatch[] = [];
   const firstToken = template.tokens[0];
-  const anchor = firstToken?.kind === "text" ? firstToken.value : null;
+  const anchor = firstToken?.kind === "text" ? (getLiteralLexemes(firstToken)[0] ?? null) : null;
   let cursor = 0;
 
   while (cursor <= text.length) {
-    const start = anchor ? text.indexOf(anchor, cursor) : cursor;
+    const start = anchor ? text.indexOf(anchor, cursor) : skipTrivia(text, cursor);
     if (start < 0) {
       break;
     }
@@ -56,17 +57,19 @@ function matchTokens(
   }
 
   if (token.kind === "text") {
-    if (!text.startsWith(token.value, cursor)) {
+    const matched = matchTextToken(text, token, cursor, true);
+    if (!matched) {
       return null;
     }
 
-    return matchTokens(text, tokens, tokenIndex + 1, cursor + token.value.length, captures);
+    return matchTokens(text, tokens, tokenIndex + 1, matched.end, captures);
   }
 
   if (token.kind === "ellipsis") {
     const nextLiteral = findNextLiteral(tokens, tokenIndex + 1);
     if (!nextLiteral) {
-      const chunk = text.slice(cursor);
+      const bounds = trimTriviaBounds(text, cursor, text.length);
+      const chunk = text.slice(bounds.start, bounds.end);
       if (!isBalancedChunk(chunk)) {
         return null;
       }
@@ -75,16 +78,17 @@ function matchTokens(
       return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
     }
 
-    const nextIndexes = findLiteralIndexes(text, nextLiteral.value, cursor);
-    for (let index = nextIndexes.length - 1; index >= 0; index -= 1) {
-      const nextIndex = nextIndexes[index];
-      if (nextIndex === undefined) {
+    const nextStarts = findLiteralStarts(text, nextLiteral, cursor);
+    for (let index = nextStarts.length - 1; index >= 0; index -= 1) {
+      const nextStart = nextStarts[index];
+      if (nextStart === undefined) {
         continue;
       }
-      const chunk = text.slice(cursor, nextIndex);
+      const bounds = trimTriviaBounds(text, cursor, nextStart);
+      const chunk = text.slice(bounds.start, bounds.end);
       if (isBalancedChunk(chunk)) {
         const nextCaptures = captureEllipsis(captures, token.index, chunk);
-        const nested = matchTokens(text, tokens, tokenIndex + 1, nextIndex, nextCaptures);
+        const nested = matchTokens(text, tokens, tokenIndex + 1, nextStart, nextCaptures);
         if (nested) {
           return nested;
         }
@@ -96,7 +100,8 @@ function matchTokens(
 
   const nextLiteral = findNextLiteral(tokens, tokenIndex + 1);
   if (!nextLiteral) {
-    const chunk = text.slice(cursor);
+    const bounds = trimTriviaBounds(text, cursor, text.length);
+    const chunk = text.slice(bounds.start, bounds.end);
     if (!isBalancedChunk(chunk)) {
       return null;
     }
@@ -109,25 +114,19 @@ function matchTokens(
     return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
   }
 
-  let probe = cursor;
-  while (probe <= text.length) {
-    const nextIndex = text.indexOf(nextLiteral.value, probe);
-    if (nextIndex < 0) {
-      return null;
-    }
-
-    const chunk = text.slice(cursor, nextIndex);
+  const nextStarts = findLiteralStarts(text, nextLiteral, cursor);
+  for (const nextStart of nextStarts) {
+    const bounds = trimTriviaBounds(text, cursor, nextStart);
+    const chunk = text.slice(bounds.start, bounds.end);
     if (isBalancedChunk(chunk)) {
       const nextCaptures = captureHole(captures, token, chunk);
       if (nextCaptures) {
-        const nested = matchTokens(text, tokens, tokenIndex + 1, nextIndex, nextCaptures);
+        const nested = matchTokens(text, tokens, tokenIndex + 1, nextStart, nextCaptures);
         if (nested) {
           return nested;
         }
       }
     }
-
-    probe = nextIndex + 1;
   }
 
   return null;
@@ -136,7 +135,7 @@ function matchTokens(
 function findNextLiteral(tokens: readonly TemplateToken[], fromIndex: number): TextToken | null {
   for (let index = fromIndex; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (token && token.kind === "text") {
+    if (token && token.kind === "text" && getLiteralLexemes(token).length > 0) {
       return token;
     }
   }
@@ -180,18 +179,60 @@ function captureEllipsis(
   return next;
 }
 
-function findLiteralIndexes(text: string, literal: string, fromIndex: number): number[] {
-  const indexes: number[] = [];
-  let probe = fromIndex;
-
-  while (probe <= text.length) {
-    const matchIndex = text.indexOf(literal, probe);
-    if (matchIndex < 0) {
-      break;
-    }
-    indexes.push(matchIndex);
-    probe = matchIndex + 1;
+function findLiteralStarts(text: string, literal: TextToken, fromIndex: number): number[] {
+  const starts: number[] = [];
+  const lexemes = getLiteralLexemes(literal);
+  const firstLexeme = lexemes[0];
+  if (!firstLexeme) {
+    return starts;
   }
 
-  return indexes;
+  let probe = fromIndex;
+  while (probe <= text.length) {
+    const start = text.indexOf(firstLexeme, probe);
+    if (start < 0) {
+      break;
+    }
+    if (matchTextToken(text, literal, start, false)) {
+      starts.push(start);
+    }
+    probe = start + 1;
+  }
+
+  return starts;
+}
+
+function matchTextToken(
+  text: string,
+  token: TextToken,
+  cursor: number,
+  allowLeadingTrivia: boolean,
+): { end: number } | null {
+  const lexemes = getLiteralLexemes(token);
+  if (lexemes.length === 0) {
+    const end = allowLeadingTrivia || token.hasTrailingTrivia ? skipTrivia(text, cursor) : cursor;
+    return { end };
+  }
+
+  let probe = allowLeadingTrivia ? skipTrivia(text, cursor) : cursor;
+  for (let index = 0; index < lexemes.length; index += 1) {
+    const lexeme = lexemes[index];
+    if (!lexeme || !text.startsWith(lexeme, probe)) {
+      return null;
+    }
+    probe += lexeme.length;
+    if (index < lexemes.length - 1) {
+      probe = skipTrivia(text, probe);
+    }
+  }
+
+  if (token.hasTrailingTrivia) {
+    probe = skipTrivia(text, probe);
+  }
+
+  return { end: probe };
+}
+
+function getLiteralLexemes(token: TextToken): readonly string[] {
+  return token.lexemes ?? collectLiteralLexemes(token.value);
 }

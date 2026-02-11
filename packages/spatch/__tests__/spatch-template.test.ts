@@ -101,3 +101,47 @@ test("compileTemplate allows escaping hole opener and ellipsis as literal text",
   const dotsMatches = findTemplateMatches('const dots = "...";\n', dotsLiteral);
   expect(dotsMatches.length).toBe(1);
 });
+
+test("literal matching is whitespace/comment-insensitive between lexemes", () => {
+  const template = compileTemplate("transform(:[input], :[config], ...);");
+  const text = [
+    "transform(one, two, three);",
+    "transform(one,two,three);",
+    "transform(\n  one /* comment */,\n  two,\n  three,\n);",
+    "",
+  ].join("\n");
+
+  const matches = findTemplateMatches(text, template);
+
+  expect(matches.length).toBe(3);
+  expect(matches[0]?.captures).toEqual({
+    input: "one",
+    config: "two",
+    __ellipsis_0: "three",
+  });
+  expect(matches[1]?.captures).toEqual({
+    input: "one",
+    config: "two",
+    __ellipsis_0: "three",
+  });
+  expect(matches[2]?.captures).toEqual({
+    input: "one /* comment */",
+    config: "two",
+    __ellipsis_0: "three,",
+  });
+});
+
+test("literal matching keeps string contents exact", () => {
+  const template = compileTemplate('const msg = "a b";');
+  const text = ['const msg = "a  b";', 'const msg = "a b";', ""].join("\n");
+
+  const matches = findTemplateMatches(text, template);
+
+  expect(matches.length).toBe(1);
+});
+
+test("compileTemplate rejects templates that only contain trivia", () => {
+  expect(() => compileTemplate(" \n// comment only\n/* block */\n")).toThrow(
+    "Template must include at least one literal character to avoid empty matches.",
+  );
+});
