@@ -108,6 +108,19 @@ Mock execution:
 
 ```bash
 $ astkit nav declarations src/__tests__/fixtures/simple.ts
+//src/__tests__/fixtures/simple.ts
+1 export interface User {
+2   id: string
+3   name: string
+4   email?: string
+5 }
+7 export class UserService {
+8   public users: User[]
+9   public add(user: User): void
+10   public findById(id: string): User | undefined
+17 }
+
+$ astkit nav declarations --json src/__tests__/fixtures/simple.ts
 {
   "file": "src/__tests__/fixtures/simple.ts",
   "declarations": [
