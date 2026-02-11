@@ -43,6 +43,34 @@ test("compileTemplate rejects unsafe hole regex constructs", () => {
   expect(() => compileTemplate("const :[name~(?=foo)[a-z]+] = 1;")).toThrow("lookaround");
 });
 
+test("compileTemplate accepts safe grouped regex constraints", () => {
+  expect(() => compileTemplate("const :[name~(?:ab){2}] = 1;")).not.toThrow();
+  expect(() => compileTemplate("const :[name~(?<part>ab){2}] = 1;")).not.toThrow();
+  expect(() => compileTemplate("const :[name~((ab){2}|cd)] = 1;")).not.toThrow();
+});
+
+test("compileTemplate rejects all lookaround group prefixes", () => {
+  expect(() => compileTemplate("const :[name~(?=ab)ab] = 1;")).toThrow("lookaround");
+  expect(() => compileTemplate("const :[name~(?!ab)ab] = 1;")).toThrow("lookaround");
+  expect(() => compileTemplate("const :[name~(?<=ab)ab] = 1;")).toThrow("lookaround");
+  expect(() => compileTemplate("const :[name~(?<!ab)ab] = 1;")).toThrow("lookaround");
+});
+
+test("compileTemplate rejects nested quantified groups across group flavors", () => {
+  expect(() => compileTemplate("const :[name~([a-z]+)+] = 1;")).toThrow("nested quantifiers");
+  expect(() => compileTemplate("const :[name~(?:[a-z]+)+] = 1;")).toThrow("nested quantifiers");
+  expect(() => compileTemplate("const :[name~(?<word>[a-z]+)+] = 1;")).toThrow(
+    "nested quantifiers",
+  );
+});
+
+test("compileTemplate rejects named and numbered backreferences", () => {
+  expect(() => compileTemplate("const :[name~([a-z]+)\\1] = 1;")).toThrow("backreferences");
+  expect(() => compileTemplate("const :[name~(?<word>[a-z]+)\\k<word>] = 1;")).toThrow(
+    "named backreferences",
+  );
+});
+
 test("constraint regex matching rejects oversized captures", () => {
   const template = compileTemplate("value(:[arg~[a-z]+]);");
   const oversized = "a".repeat(2050);

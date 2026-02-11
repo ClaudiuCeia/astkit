@@ -64,6 +64,116 @@ const regexConstraintCharacterParser = any(
 
 const regexConstraintParser = mapJoin(many1(regexConstraintCharacterParser));
 
+type RegexSafetyToken =
+  | {
+      kind: "escaped";
+      value: string;
+    }
+  | {
+      kind: "characterClass";
+      value: string;
+    }
+  | {
+      kind: "groupOpen";
+      value: string;
+      lookaround: boolean;
+    }
+  | {
+      kind: "groupClose";
+      value: ")";
+    }
+  | {
+      kind: "quantifier";
+      value: string;
+    }
+  | {
+      kind: "literal";
+      value: string;
+    };
+
+const escapedRegexSafetyTokenParser = map(
+  any(parseRegex(/\\k<[^>]+>/, "named backreference"), parseRegex(/\\./, "escaped character")),
+  (value) =>
+    ({
+      kind: "escaped",
+      value,
+    }) satisfies RegexSafetyToken,
+);
+
+const charClassRegexSafetyTokenParser = map(
+  parseRegex(/\[(?:\\.|[^\]\\])*\]/, "character class"),
+  (value) =>
+    ({
+      kind: "characterClass",
+      value,
+    }) satisfies RegexSafetyToken,
+);
+
+const lookaroundGroupOpenRegexSafetyTokenParser = map(
+  any(str("(?="), str("(?!"), str("(?<="), str("(?<!")),
+  (value) =>
+    ({
+      kind: "groupOpen",
+      value,
+      lookaround: true,
+    }) satisfies RegexSafetyToken,
+);
+
+const nonLookaroundGroupOpenRegexSafetyTokenParser = map(
+  any(str("(?:"), parseRegex(/\(\?<[_$A-Za-z][_$A-Za-z0-9]*>/, "named capture"), str("(")),
+  (value) =>
+    ({
+      kind: "groupOpen",
+      value,
+      lookaround: false,
+    }) satisfies RegexSafetyToken,
+);
+
+const groupCloseRegexSafetyTokenParser = map(
+  str(")"),
+  () =>
+    ({
+      kind: "groupClose",
+      value: ")",
+    }) satisfies RegexSafetyToken,
+);
+
+const quantifierRegexSafetyTokenParser = map(
+  parseRegex(/(?:\*|\+|\?|\{(?:\d+)(?:,(?:\d+)?)?\})\??/, "quantifier"),
+  (value) =>
+    ({
+      kind: "quantifier",
+      value,
+    }) satisfies RegexSafetyToken,
+);
+
+const literalRegexSafetyTokenParser = map(
+  minus(anyChar(), eof()),
+  (value) =>
+    ({
+      kind: "literal",
+      value,
+    }) satisfies RegexSafetyToken,
+);
+
+const regexSafetyScannerParser = map(
+  seq(
+    many(
+      any(
+        escapedRegexSafetyTokenParser,
+        charClassRegexSafetyTokenParser,
+        lookaroundGroupOpenRegexSafetyTokenParser,
+        nonLookaroundGroupOpenRegexSafetyTokenParser,
+        groupCloseRegexSafetyTokenParser,
+        quantifierRegexSafetyTokenParser,
+        literalRegexSafetyTokenParser,
+      ),
+    ),
+    eof(),
+  ),
+  ([tokens]) => tokens as RegexSafetyToken[],
+);
+
 const holeTokenParser = map(
   seq(
     str(":["),
@@ -219,16 +329,21 @@ function scanRegexSafety(source: string): { safe: true } | { safe: false; reason
   type GroupState = { containsQuantifier: boolean };
   const groups: GroupState[] = [];
 
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    if (!char) {
+  const parsed = regexSafetyScannerParser({ text: source, index: 0 });
+  if (!parsed.success) {
+    return { safe: true };
+  }
+
+  for (let index = 0; index < parsed.value.length; index += 1) {
+    const token = parsed.value[index];
+    if (!token) {
       continue;
     }
 
-    if (char === "\\") {
-      const escaped = source[index + 1];
+    if (token.kind === "escaped") {
+      const escaped = token.value[1];
       if (!escaped) {
-        break;
+        continue;
       }
       if (/[1-9]/.test(escaped)) {
         return {
@@ -236,28 +351,17 @@ function scanRegexSafety(source: string): { safe: true } | { safe: false; reason
           reason: "backreferences (for example \\1) are not allowed",
         };
       }
-      if (escaped === "k" && source[index + 2] === "<") {
+      if (escaped === "k" && token.value[2] === "<") {
         return {
           safe: false,
           reason: "named backreferences (for example \\k<name>) are not allowed",
         };
       }
-      index += 1;
       continue;
     }
 
-    if (char === "[") {
-      index = skipCharacterClass(source, index);
-      continue;
-    }
-
-    if (char === "(") {
-      if (
-        source.startsWith("(?=", index) ||
-        source.startsWith("(?!", index) ||
-        source.startsWith("(?<=", index) ||
-        source.startsWith("(?<!", index)
-      ) {
+    if (token.kind === "groupOpen") {
+      if (token.lookaround) {
         return {
           safe: false,
           reason: "lookaround assertions are not allowed",
@@ -267,84 +371,41 @@ function scanRegexSafety(source: string): { safe: true } | { safe: false; reason
       continue;
     }
 
-    if (char === ")") {
+    if (token.kind === "groupClose") {
       const closed = groups.pop();
       if (!closed) {
         continue;
       }
 
-      const quantifierLength = readQuantifierLength(source, index + 1);
-      if (quantifierLength > 0 && closed.containsQuantifier) {
+      const next = parsed.value[index + 1];
+      const nextIsQuantifier = next?.kind === "quantifier";
+      if (nextIsQuantifier && closed.containsQuantifier) {
         return {
           safe: false,
           reason: "nested quantifiers in grouped expressions are not allowed",
         };
       }
-      if (closed.containsQuantifier) {
-        const parent = groups[groups.length - 1];
-        if (parent) {
-          parent.containsQuantifier = true;
-        }
-      } else if (quantifierLength > 0) {
-        const parent = groups[groups.length - 1];
-        if (parent) {
-          parent.containsQuantifier = true;
-        }
+
+      const parent = groups[groups.length - 1];
+      if (parent && (closed.containsQuantifier || nextIsQuantifier)) {
+        parent.containsQuantifier = true;
+      }
+
+      if (nextIsQuantifier) {
+        index += 1;
       }
       continue;
     }
 
-    const quantifierLength = readQuantifierLength(source, index);
-    if (quantifierLength > 0) {
+    if (token.kind === "quantifier") {
       const current = groups[groups.length - 1];
       if (current) {
         current.containsQuantifier = true;
       }
-      index += quantifierLength - 1;
     }
   }
 
   return { safe: true };
-}
-
-function skipCharacterClass(source: string, fromIndex: number): number {
-  for (let index = fromIndex + 1; index < source.length; index += 1) {
-    const char = source[index];
-    if (!char) {
-      return source.length - 1;
-    }
-    if (char === "\\") {
-      index += 1;
-      continue;
-    }
-    if (char === "]") {
-      return index;
-    }
-  }
-  return source.length - 1;
-}
-
-function readQuantifierLength(source: string, index: number): number {
-  const char = source[index];
-  if (!char) {
-    return 0;
-  }
-
-  if (char === "*" || char === "+" || char === "?") {
-    const lazy = source[index + 1] === "?" ? 2 : 1;
-    return lazy;
-  }
-
-  if (char !== "{") {
-    return 0;
-  }
-
-  const slice = source.slice(index);
-  const match = slice.match(/^\{(\d+)(,(\d+)?)?\}\??/);
-  if (!match) {
-    return 0;
-  }
-  return match[0].length;
 }
 
 function buildTemplateParseHint(source: string, baseError: string): string {
