@@ -8,6 +8,7 @@ import {
   runPatchCommand,
   validatePatchCommandFlags,
 } from "../src/command.ts";
+import { validateSelectedOccurrences } from "../src/command/interactive.ts";
 import type { SpatchResult } from "../src/types.ts";
 
 test("runPatchCommand applies patch document string in scope", async () => {
@@ -306,6 +307,60 @@ test("validatePatchCommandFlags rejects --interactive with --check", () => {
   expect(() =>
     validatePatchCommandFlags({ interactive: true, check: true }),
   ).toThrow("Cannot combine --interactive with --check.");
+});
+
+test("validateSelectedOccurrences rejects overlapping spans", () => {
+  const source = "const a = 1;\nconst b = 2;\n";
+
+  expect(() =>
+    validateSelectedOccurrences("sample.ts", source, [
+      {
+        start: 0,
+        end: 10,
+        line: 1,
+        character: 1,
+        matched: source.slice(0, 10),
+        replacement: "x",
+        captures: {},
+      },
+      {
+        start: 5,
+        end: 15,
+        line: 1,
+        character: 6,
+        matched: source.slice(5, 15),
+        replacement: "y",
+        captures: {},
+      },
+    ]),
+  ).toThrow("Invalid overlapping interactive occurrences");
+});
+
+test("validateSelectedOccurrences accepts non-overlapping spans", () => {
+  const source = "const a = 1;\nconst b = 2;\n";
+
+  expect(() =>
+    validateSelectedOccurrences("sample.ts", source, [
+      {
+        start: 0,
+        end: 12,
+        line: 1,
+        character: 1,
+        matched: "const a = 1;",
+        replacement: "let a = 1;",
+        captures: {},
+      },
+      {
+        start: 13,
+        end: 25,
+        line: 2,
+        character: 1,
+        matched: "const b = 2;",
+        replacement: "let b = 2;",
+        captures: {},
+      },
+    ]),
+  ).not.toThrow();
 });
 
 test("runPatchCommand interactive mode forwards concurrency and verbose logger", async () => {

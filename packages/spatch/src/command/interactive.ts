@@ -349,7 +349,7 @@ function parseInteractiveChoice(answer: string): InteractiveChoice | null {
   return null;
 }
 
-function validateSelectedOccurrences(
+export function validateSelectedOccurrences(
   file: string,
   source: string,
   occurrences: readonly SpatchOccurrence[],
