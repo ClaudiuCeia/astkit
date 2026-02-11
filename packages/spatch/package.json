@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/spatch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Structural patcher for TS/JS using a patch-document template format.",
   "license": "MIT",
   "type": "module",

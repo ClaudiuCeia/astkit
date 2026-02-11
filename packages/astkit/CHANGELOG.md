@@ -1,5 +1,12 @@
 # @claudiu-ceia/astkit
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [6cabe90]
+  - @claudiu-ceia/spatch@0.3.0
+
 ## 0.1.2
 
 ### Patch Changes
