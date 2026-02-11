@@ -357,20 +357,21 @@ JSON `search` output (`--json`) includes:
 
 ## Programmatic API
 
-Root exports:
+`@claudiu-ceia/astkit` is a meta package that re-exports public APIs from:
 
-- `patchProject` from `src/spatch`
-- `searchProject` from `src/sgrep`
-- `rankCode` from `src/code-rank`
+- `@claudiu-ceia/spatch`
+- `@claudiu-ceia/sgrep`
+- `@claudiu-ceia/nav`
 
 ```ts
 import { patchProject, rankCode, searchProject } from "@claudiu-ceia/astkit";
 ```
 
-See detailed internals:
+See package-specific documentation:
 
-- `src/spatch/README.md`
-- `src/sgrep/README.md`
+- `packages/spatch/README.md`
+- `packages/sgrep/README.md`
+- `packages/nav/README.md`
 
 ## Development
 
@@ -412,8 +413,8 @@ npm run skill:install
 
 ## Code Organization
 
-- `src/nav/*`: TypeScript language-service navigation commands
-- `src/sgrep/*`: search pipeline (`parse -> search -> output`)
-- `src/spatch/*`: patch pipeline (`parse -> rewrite -> output`)
-- `src/pattern/*`: shared structural parser/matcher/renderer
-- `src/common/*`: shared helpers (for example inline-or-file text resolution)
+- `packages/astkit/src/*`: top-level CLI app and package re-exports
+- `packages/nav/src/*`: TypeScript language-service navigation and code-rank commands
+- `packages/sgrep/src/*`: search pipeline (`parse -> search -> output`)
+- `packages/spatch/src/*`: patch pipeline (`parse -> rewrite -> output`)
+- `packages/astkit-core/src/*`: shared matching/parsing/filesystem utilities
