@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export type WriteFileIfUnchangedAtomicallyInput = {
+type WriteFileIfUnchangedAtomicallyInput = {
   filePath: string;
   originalText: string;
   rewrittenText: string;

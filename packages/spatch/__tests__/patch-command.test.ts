@@ -4,15 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { Chalk } from "chalk";
-import {
-  formatPatchOutput,
-  patchCommand,
-  readAllFromStream,
-  runPatchCommand,
-  validatePatchCommandFlags,
-} from "../src/command.ts";
-import { patchCommandFlagParameters } from "../src/command/flags.ts";
-import { validateSelectedOccurrences } from "../src/command/interactive.ts";
+import { patchCommand, runPatchCommand } from "../src/command.ts";
+import { patchCommandFlagParameters, validatePatchCommandFlags } from "../src/command/flags.ts";
+import { validateSelectedOccurrences } from "../src/command/interactive/validation.ts";
+import { formatPatchOutput } from "../src/command/output.ts";
 import type { SpatchResult } from "../src/types.ts";
 
 function resolvePatchCommandExecutor() {
@@ -119,21 +114,6 @@ test("runPatchCommand can read patch document from provided stdin stream", async
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
-});
-
-test("readAllFromStream applies encoding and concatenates chunks", async () => {
-  const stream = Readable.from([Buffer.from("first "), Buffer.from("second")]);
-  const setEncodingCalls: BufferEncoding[] = [];
-  const originalSetEncoding = stream.setEncoding.bind(stream);
-  stream.setEncoding = ((encoding: BufferEncoding) => {
-    setEncodingCalls.push(encoding);
-    return originalSetEncoding(encoding);
-  }) as typeof stream.setEncoding;
-
-  const text = await readAllFromStream(stream, "utf8");
-
-  expect(text).toBe("first second");
-  expect(setEncodingCalls).toEqual(["utf8"]);
 });
 
 test("runPatchCommand rejects empty patch document from stdin", async () => {

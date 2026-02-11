@@ -78,7 +78,7 @@ astkit nav declarations <file>
 astkit nav definition <location>
 astkit nav references <location>
 astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] <pattern-input> [scope]
-astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--cwd <path>] <patch-input> [scope]
+astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--check] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <patch-input> [scope]
 astkit code-rank [--json] [--limit <n>] [--cwd <path>] [scope]
 ```
 

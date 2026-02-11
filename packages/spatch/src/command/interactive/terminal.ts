@@ -10,12 +10,12 @@ import {
 } from "../output.ts";
 import type { InteractiveChoice, InteractiveContext, InteractiveDecider } from "./types.ts";
 
-export type PromptInterface = {
+type PromptInterface = {
   question(prompt: string): Promise<string>;
   close(): void;
 };
 
-export type TerminalInteractiveDependencies = {
+type TerminalInteractiveDependencies = {
   stdin: Readable & { isTTY?: boolean };
   stdout: Writable & { isTTY?: boolean; write(chunk: string): boolean };
   createPrompt: (options: {

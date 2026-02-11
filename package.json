@@ -21,6 +21,8 @@
     "bench": "bun run bench/run.ts",
     "bench:baseline": "bun run bench/baseline.ts",
     "bench:check": "bun run bench/check.ts",
+    "knip": "knip --dependencies --files",
+    "knip:full": "knip",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish",
@@ -29,7 +31,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
+    "@claudiu-ceia/sgrep": "workspace:*",
+    "@claudiu-ceia/spatch": "workspace:*",
     "@types/bun": "latest",
+    "knip": "^5.83.1",
     "mitata": "^1.0.34",
     "oxfmt": "^0.31.0",
     "typescript": "^5.9.3"

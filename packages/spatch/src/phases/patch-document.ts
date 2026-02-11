@@ -10,7 +10,7 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 
-export type ParsedPatchDocument = {
+type ParsedPatchDocument = {
   pattern: string;
   replacement: string;
 };

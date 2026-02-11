@@ -6,12 +6,13 @@ import {
   validatePatchCommandFlags,
   type PatchCommandFlags,
 } from "./command/flags.ts";
-import { runInteractivePatchCommand, type InteractiveDecider } from "./command/interactive.ts";
+import { runInteractivePatchCommand } from "./command/interactive.ts";
+import type { InteractiveDecider } from "./command/interactive/types.ts";
 import { formatPatchOutput } from "./command/output.ts";
 import { patchProject } from "./spatch.ts";
 import type { SpatchOptions, SpatchResult } from "./types.ts";
 
-export type RunPatchCommandOptions = {
+type RunPatchCommandOptions = {
   interactiveDecider?: InteractiveDecider;
   /**
    * Text encoding used for reading/writing scoped source files.
@@ -34,7 +35,7 @@ export type RunPatchCommandOptions = {
   stdinStream?: ReadableTextStream;
 };
 
-export type ReadableTextStream = AsyncIterable<unknown> & {
+type ReadableTextStream = AsyncIterable<unknown> & {
   setEncoding?(encoding: BufferEncoding): void;
 };
 
@@ -160,7 +161,7 @@ async function resolvePatchInput(
   return text;
 }
 
-export async function readAllFromStream(
+async function readAllFromStream(
   stream: ReadableTextStream,
   encoding: BufferEncoding,
 ): Promise<string> {
@@ -172,8 +173,3 @@ export async function readAllFromStream(
   }
   return text;
 }
-
-export { validatePatchCommandFlags } from "./command/flags.ts";
-export { formatPatchOutput } from "./command/output.ts";
-export type { PatchCommandFlags } from "./command/flags.ts";
-export type { InteractiveContext } from "./command/interactive.ts";

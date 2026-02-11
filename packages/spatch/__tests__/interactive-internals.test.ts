@@ -4,8 +4,8 @@ import {
   createTerminalInteractiveDecider,
   formatInteractiveChangeBlock,
   parseInteractiveChoice,
-} from "../src/command/interactive.ts";
-import type { InteractiveContext } from "../src/command/interactive.ts";
+} from "../src/command/interactive/terminal.ts";
+import type { InteractiveContext } from "../src/command/interactive/types.ts";
 
 function createContext(): InteractiveContext {
   return {

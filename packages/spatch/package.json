@@ -22,10 +22,10 @@
       "default": "./dist/index.js"
     },
     "./internal/command": {
-      "types": "./dist/command.d.ts",
-      "bun": "./src/command.ts",
-      "import": "./dist/command.js",
-      "default": "./dist/command.js"
+      "types": "./dist/internal/command.d.ts",
+      "bun": "./src/internal/command.ts",
+      "import": "./dist/internal/command.js",
+      "default": "./dist/internal/command.js"
     },
     "./package.json": "./package.json"
   },

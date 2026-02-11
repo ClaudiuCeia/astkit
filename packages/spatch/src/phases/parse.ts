@@ -7,12 +7,12 @@ export type ParsedPatchSpec = {
   replacement: string;
 };
 
-export type ParsedPatchInvocation = {
+type ParsedPatchInvocation = {
   patch: ParsedPatchSpec;
   options: SpatchOptions;
 };
 
-export function parsePatchSpec(patchDocument: string): ParsedPatchSpec {
+function parsePatchSpec(patchDocument: string): ParsedPatchSpec {
   const parsed = parsePatchDocument(patchDocument);
   return {
     pattern: parsed.pattern,

@@ -202,7 +202,7 @@ Scope boundary:
 Write safety:
 
 - non-interactive apply uses stale-content checks and atomic temp-file rename writes
-- interactive mode re-validates selected spans before applying each file
+- interactive mode re-validates selected spans, then writes through the same stale-safe atomic path
 
 This makes `--check` suitable for CI and agent workflows.
 
@@ -228,7 +228,7 @@ console.log(result.totalReplacements);
 
 Exports:
 
-- `patchProject` / `spatch`
+- `patchProject`
 - `DEFAULT_PATCHABLE_EXTENSIONS`, `DEFAULT_EXCLUDED_DIRECTORIES`
 
 ## Caveats

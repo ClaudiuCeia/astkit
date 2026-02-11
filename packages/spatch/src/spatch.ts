@@ -12,8 +12,6 @@ export async function patchProject(
   return runPatchPhases(invocation.patch, invocation.options);
 }
 
-export const spatch = patchProject;
-
 async function runPatchPhases(
   patch: ParsedPatchSpec,
   options: SpatchOptions,

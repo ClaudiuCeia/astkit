@@ -1,4 +1,4 @@
-export type ReplacementSpan = {
+type ReplacementSpan = {
   start: number;
   end: number;
   replacement: string;

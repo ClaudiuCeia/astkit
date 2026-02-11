@@ -419,6 +419,12 @@ Run typecheck:
 npm run typecheck
 ```
 
+Run manual dead-code/dependency hygiene checks (current gate uses `files` + `dependencies`):
+
+```bash
+npm run knip
+```
+
 Preview npm package contents:
 
 ```bash
