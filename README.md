@@ -1,42 +1,33 @@
 # astkit
 
-`astkit` is a token-efficient, reproducible structural search/patch toolkit for TypeScript/JavaScript that can be run manually, in CI, or by an agent.
-It operates on AST structure, TypeScript type services, and reference graphs.
+Monorepo for `astkit` tooling: structural search, structural rewrite, and TypeScript navigation utilities for TS/JS codebases.
 
-Monorepo packages:
+## Package map
 
-- `@claudiu-ceia/astkit`: umbrella CLI + library exports
-- `@claudiu-ceia/spatch`: structural rewrite tool
-- `@claudiu-ceia/sgrep`: structural search tool
-- `@claudiu-ceia/nav`: TypeScript navigation/reference tool
-- `@claudiu-ceia/astkit-core`: shared internals
+- `@claudiu-ceia/astkit`: umbrella CLI and meta package re-exporting public APIs
+- `@claudiu-ceia/sgrep`: structural search with metavariables and isomorphisms
+- `@claudiu-ceia/spatch`: structural rewrite engine using patch documents
+- `@claudiu-ceia/nav`: declarations, definition, references, and code-rank via TS language service
+- `@claudiu-ceia/astkit-core`: shared internals used by the packages above
 
-## What astkit provides
+## Which README to read
 
-- Definition and reference navigation via the TypeScript language service
-- Structural search and rewrite using AST-shaped patterns
-- Reference-based symbol ranking as an impact heuristic
+- Umbrella package usage: `packages/astkit/README.md`
+- Search details (`sgrep` syntax, isomorphisms, API): `packages/sgrep/README.md`
+- Patch details (`spatch` document format, safety, API): `packages/spatch/README.md`
+- Navigation details (`nav` commands and API): `packages/nav/README.md`
 
-## Non-Goals
-
-`astkit` does not:
-
-- infer program intent or meaning
-- perform whole-program flow analysis
-- prove correctness or enforce architecture
-- replace the TypeScript compiler or type checker
-- make decisions automatically
-- guarantee behavioral equivalence after rewrites
+This root README stays repo-focused to avoid duplicating CLI docs across package READMEs.
 
 ## Install
+
+Install the umbrella package for one entrypoint:
 
 ```bash
 npm install --save-dev @claudiu-ceia/astkit typescript
 ```
 
-`astkit` uses the project's `typescript` installation for type services.
-
-You can also install individual tools:
+Or install individual tools:
 
 ```bash
 npm install --save-dev @claudiu-ceia/sgrep
@@ -44,424 +35,47 @@ npm install --save-dev @claudiu-ceia/spatch
 npm install --save-dev @claudiu-ceia/nav typescript
 ```
 
-## Run
+## Monorepo development
 
 ```bash
-npx @claudiu-ceia/astkit <command> [args]
-```
-
-Or via the bin entry:
-
-```bash
-astkit <command> [args]
-```
-
-## Install Skill (Codex)
-
-From an installed npm package:
-
-```bash
-npx skills@latest add ./node_modules/@claudiu-ceia/astkit/skills/astkit-tooling -a codex -y
-```
-
-From this repository:
-
-```bash
-npm run skill:install
-```
-
-## CLI Reference
-
-General help:
-
-```bash
-astkit --help
-astkit <command> --help
-```
-
-Full command surface:
-
-```bash
-astkit nav declarations <file>
-astkit nav definition <location>
-astkit nav references <location>
-astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <pattern-input> [scope]
-astkit patch [--interactive] [--json] [--no-color] [--dry-run] [--check] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <patch-input> [scope]
-astkit code-rank [--json] [--limit <n>] [--cwd <path>] [scope]
-```
-
-### `nav`
-
-```bash
-astkit nav declarations <file>
-astkit nav definition <location>
-astkit nav references <location>
-```
-
-`<location>` format:
-
-- `path/to/file.ts:120:17`
-
-Line and character are 1-indexed.
-
-Mock execution:
-
-```bash
-$ astkit nav declarations src/__tests__/fixtures/simple.ts
-//src/__tests__/fixtures/simple.ts
-1 export interface User {
-2   id: string
-3   name: string
-4   email?: string
-5 }
-7 export class UserService {
-8   public users: User[]
-9   public add(user: User): void
-10   public findById(id: string): User | undefined
-17 }
-
-$ astkit nav declarations --json src/__tests__/fixtures/simple.ts
-{
-  "file": "src/__tests__/fixtures/simple.ts",
-  "declarations": [
-    {
-      "name": "User",
-      "kind": "interface",
-      "signature": "User",
-      "line": 1
-    },
-    {
-      "name": "UserService",
-      "kind": "class",
-      "signature": "UserService",
-      "line": 7
-    }
-  ]
-}
-
-$ astkit nav definition src/__tests__/fixtures/importer.ts:1:15
-{
-  "symbol": "User",
-  "definitions": [
-    {
-      "file": "src/__tests__/fixtures/simple.ts",
-      "line": 1,
-      "character": 18,
-      "kind": "interface",
-      "containerName": "\".../simple\""
-    }
-  ]
-}
-
-$ astkit nav references src/__tests__/fixtures/simple.ts:1:18
-{
-  "symbol": "interface User",
-  "definition": {
-    "file": "src/__tests__/fixtures/simple.ts",
-    "line": 1,
-    "character": 18
-  },
-  "references": [
-    {
-      "file": "src/__tests__/fixtures/simple.ts",
-      "line": 1,
-      "character": 18,
-      "isDefinition": true,
-      "isWriteAccess": true
-    },
-    {
-      "file": "src/__tests__/fixtures/importer.ts",
-      "line": 1,
-      "character": 15,
-      "isDefinition": false,
-      "isWriteAccess": true
-    }
-  ]
-}
-```
-
-### `search` (`sgrep`)
-
-```bash
-astkit search <pattern-input> [scope] [--cwd <path>] [--no-color] [--no-isomorphisms] [--json] [--concurrency <n>] [--verbose <level>]
-```
-
-- Default output is compact, file-grouped text
-- In interactive terminals, captures are colorized
-- `--no-color` disables coloring
-- Isomorphism expansion is enabled by default (commutative binary operators, object-literal key order, redundant parentheses)
-- `--no-isomorphisms` disables isomorphism expansion
-- `--json` prints structured result
-- `--concurrency` controls max files processed in parallel
-- `--verbose` enables perf tracing logs (1=summary, 2=adds slow files)
-
-Examples:
-
-```bash
-# inline pattern
-astkit search 'const :[name] = :[value];' src
-
-# pattern loaded from file
-astkit search rules/find-const.sgrep src --cwd /repo
-
-# machine output
-astkit search --json 'const :[name] = :[value];' src
-```
-
-Mock execution:
-
-```bash
-$ astkit search 'const :[name] = :[value];' src
-//src/example.ts
-12: const foo = 42;
-27: const bar = makeValue( ...
-
-$ astkit search --json 'const :[name] = :[value];' src
-{
-  "scope": "/repo/src",
-  "pattern": "const :[name] = :[value];",
-  "filesScanned": 24,
-  "filesMatched": 2,
-  "totalMatches": 3,
-  "files": [
-    {
-      "file": "src/example.ts",
-      "matchCount": 2,
-      "matches": [
-        {
-          "line": 12,
-          "character": 1,
-          "matched": "const foo = 42;",
-          "captures": {
-            "name": "foo",
-            "value": "42"
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### `patch` (`spatch`)
-
-```bash
-astkit patch <patch-input> [scope] [--cwd <path>] [--dry-run] [--check] [--json] [--no-color] [--interactive] [--concurrency <n>] [--verbose <level>]
-```
-
-- `patch-input` can be inline patch text or a file path
-- Patch format uses `+`/`-`/context lines in one document
-- Default output is compact diff-style text
-- `--check` exits non-zero if replacements would be made (CI guardrail)
-- `--json` prints structured output
-- `--no-color` disables color in compact output
-- `--interactive` lets you accept/reject each match
-- `--concurrency` controls max files processed in parallel
-- `--verbose` enables perf tracing logs (1=summary, 2=adds slow files)
-
-Example:
-
-```bash
-astkit patch $'-const :[name] = :[value];\n+let :[name] = :[value];' src
-```
-
-Notes:
-
-- In bash/zsh, `$'...'` enables `\n` escapes for multi-line patch documents. Alternatively, pass a patch file path as `<patch-input>`.
-
-Mock execution:
-
-```bash
-$ astkit patch --dry-run $'-const :[name] = :[value];\n+let :[name] = :[value];' src
-diff --git a/src/example.ts b/src/example.ts
---- a/src/example.ts
-+++ b/src/example.ts
-@@ -12,1 +12,1 @@
--const foo = 42;
-+let foo = 42;
-1 file changed, 1 replacement, (dry-run)
-
-$ astkit patch --interactive $'-const :[name] = :[value];\n+let :[name] = :[value];' src
-------------------------------------------------------------------------
-Change 1/2: src/example.ts:12
-@@ -12,1 +12,1 @@
--const foo = 42;
-+let foo = 42;
-Choice [y/n/a/q] (default: n): y
-```
-
-### `code-rank`
-
-```bash
-astkit code-rank [scope] [--cwd <path>] [--limit <n>] [--json]
-```
-
-- Ranks exported symbols by TypeScript reference strength
-- Uses the TypeScript language service (`findReferences`)
-- Default output is compact, one symbol per line
-- `--json` prints structured output
-
-Example:
-
-```bash
-astkit code-rank src --limit 20
-```
-
-Mock execution:
-
-```bash
-$ astkit code-rank src --limit 3
-1. score=14 refs=3 ext=3 files=2 function hot src/a.ts:1:8
-2. score=9 refs=2 ext=2 files=1 function warm src/a.ts:5:8
-3. score=6 refs=1 ext=1 files=1 interface User src/model.ts:1:18
-
-$ astkit code-rank src --limit 1 --json
-{
-  "scope": "/repo/src",
-  "symbolsRanked": 1,
-  "symbols": [
-    {
-      "symbol": "hot",
-      "kind": "function",
-      "file": "src/a.ts",
-      "line": 1,
-      "character": 8,
-      "score": 14,
-      "referenceCount": 3
-    }
-  ]
-}
-```
-
-## Structural Pattern Syntax
-
-Both `search` and `patch` use the same hole/metavariable syntax:
-
-- `:[name]`
-- `:[_]` anonymous hole (ignored in captures)
-- `:[name~regex]` regex-constrained hole
-- `...` variadic wildcard (matches balanced text and can be reused in replacement)
-
-Repeated named holes enforce equality:
-
-```text
-:[x] + :[x]
-```
-
-This matches `foo + foo` but not `foo + bar`.
-
-Hole captures are structurally balanced (brackets/strings/comments), which helps avoid malformed partial matches.
-
-Regex-constrained holes intentionally use a safe subset:
-
-- max regex constraint length: `256`
-- disallowed constructs: lookarounds, backreferences, nested quantified groups
-- constrained captures longer than `2048` characters are rejected
-
-## Output Examples
-
-Default compact `search` output:
-
-```text
-//src/example.ts
-12: const foo = 42;
-34: const bar = compute( ...
-```
-
-JSON `search` output (`--json`) includes:
-
-- files scanned/matched
-- total matches
-- byte spans
-- line/character
-- captures
-
-`patch --json` includes structured match and replacement stats per file.
-
-## Programmatic API
-
-`@claudiu-ceia/astkit` re-exports public APIs from:
-
-- `@claudiu-ceia/spatch`
-- `@claudiu-ceia/sgrep`
-- `@claudiu-ceia/nav`
-
-```ts
-import { patchProject, rankCode, searchProject } from "@claudiu-ceia/astkit";
-```
-
-Package-level docs:
-
-- `packages/spatch/README.md`
-- `packages/sgrep/README.md`
-- `packages/nav/README.md`
-
-## Development
-
-Run local CLIs from the monorepo root:
-
-```bash
-bun run astkit -- <command> [args]
-bun run spatch -- --help
+bun install
+bun run astkit -- --help
 bun run sgrep -- --help
+bun run spatch -- --help
 bun run nav -- --help
 ```
 
-Format:
+## Quality gates
 
 ```bash
-npm run format
-npm run format:check
+bun run format:check
+bun run typecheck
+bun run build
+bun run test
+bun run test:coverage
+bun run knip
 ```
 
-Build distributable output:
+## Release flow
 
 ```bash
-npm run build
+bun run changeset
+bun run version-packages
+bun run release
+bun run pack:check
 ```
 
-Run tests:
+## Skill integration
 
 ```bash
-bun test
-npm run test:spatch
+bun run skill:install
 ```
 
-Coverage:
+## Repository layout
 
-```bash
-npm run test:coverage
-npm run test:spatch:coverage
-```
-
-Run typecheck:
-
-```bash
-npm run typecheck
-```
-
-Run manual dead-code/dependency hygiene checks (current gate uses `files` + `dependencies`):
-
-```bash
-npm run knip
-```
-
-Preview npm package contents:
-
-```bash
-npm run pack:check
-```
-
-Install this repo's skill locally for Codex:
-
-```bash
-npm run skill:install
-```
-
-## Code Organization
-
-- `packages/nav/src/*`: TypeScript language-service navigation and ranking
+- `packages/astkit/src/*`: umbrella CLI app and meta re-exports
 - `packages/sgrep/src/*`: search pipeline (`parse -> search -> output`)
 - `packages/spatch/src/*`: patch pipeline (`parse -> rewrite -> output`)
-- `packages/astkit-core/src/*`: shared matching, file traversal, and utility helpers
-- `packages/astkit/src/*`: umbrella CLI wiring (`astkit nav|search|patch|code-rank`)
+- `packages/nav/src/*`: TS language-service navigation and ranking commands
+- `packages/astkit-core/src/*`: shared matching, parsing, and filesystem utilities
+- `bench/*`: benchmark suites

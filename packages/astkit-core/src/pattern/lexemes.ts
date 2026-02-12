@@ -22,7 +22,7 @@ type LexemeScanPart =
       value: string;
     };
 
-export type LexemeLayout = {
+type LexemeLayout = {
   leadingTrivia: string;
   lexemes: string[];
   separators: string[];

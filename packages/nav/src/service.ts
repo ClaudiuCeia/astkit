@@ -2,13 +2,13 @@ import { realpathSync, statSync } from "node:fs";
 import ts from "typescript";
 import path from "node:path";
 
-export type WorkspaceBoundary = {
+type WorkspaceBoundary = {
   cwd: string;
   repoRoot: string | null;
   canonicalBoundary: string;
 };
 
-export interface Service {
+interface Service {
   service: ts.LanguageService;
   program: ts.Program;
   projectRoot: string;

@@ -5,12 +5,12 @@ export type ParsedSearchSpec = {
   pattern: string;
 };
 
-export type ParsedSearchInvocation = {
+type ParsedSearchInvocation = {
   search: ParsedSearchSpec;
   options: SgrepOptions;
 };
 
-export function parseSearchSpec(pattern: string): ParsedSearchSpec {
+function parseSearchSpec(pattern: string): ParsedSearchSpec {
   return { pattern };
 }
 

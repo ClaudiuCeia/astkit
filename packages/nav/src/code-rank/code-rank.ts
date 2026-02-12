@@ -1,7 +1,7 @@
 import { buildCommand, numberParser } from "@stricli/core";
 import { rankCode, type CodeRankResult } from "./rank.ts";
 
-export type CodeRankCommandFlags = {
+type CodeRankCommandFlags = {
   cwd?: string;
   limit?: number;
   json?: boolean;

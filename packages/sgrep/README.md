@@ -1,21 +1,42 @@
 # sgrep
 
-`sgrep` performs structural search over TS/JS source files using hole/metavariable templates.
+`sgrep` performs structural search over TS/JS source files using metavariable templates.
 
 Pattern input can be:
 
 - inline pattern text
 - a file path (resolved from `cwd`)
 
+## Install
+
+```bash
+npm install --save-dev @claudiu-ceia/sgrep
+```
+
 ## CLI
 
 ```bash
-sgrep [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <pattern-input> [scope]
-# or:
-astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] [--concurrency <n>] [--verbose <level>] <pattern-input> [scope]
+sgrep \
+  [--json] \
+  [--no-color] \
+  [--no-isomorphisms] \
+  [--cwd <path>] \
+  [--concurrency <n>] \
+  [--verbose <level>] \
+  <pattern-input> [scope]
+
+# through umbrella CLI
+astkit search \
+  [--json] \
+  [--no-color] \
+  [--no-isomorphisms] \
+  [--cwd <path>] \
+  [--concurrency <n>] \
+  [--verbose <level>] \
+  <pattern-input> [scope]
 ```
 
-### Flags
+Flags:
 
 - `--json`: output structured JSON
 - `--no-color`: disable colored output in compact text mode
@@ -24,7 +45,7 @@ astkit search [--json] [--no-color] [--no-isomorphisms] [--cwd <path>] [--concur
 - `--concurrency <n>`: max files processed concurrently (default: `8`)
 - `--verbose <level>`: perf tracing to stderr (`1=summary`, `2=includes slow files`)
 
-### Examples
+## Quick examples
 
 ```bash
 # inline pattern
@@ -37,7 +58,7 @@ sgrep rules/find-const.sgrep src --cwd /repo
 sgrep 'const obj = { a: :[x], b: :[y] };' src --verbose 2
 ```
 
-## Pattern Syntax
+## Pattern syntax
 
 Supported syntax is shared with `spatch` templates:
 
@@ -72,8 +93,8 @@ Matches calls where `:[x]` is the first argument and `:[y]` is the last argument
 
 Hole captures are required to be structurally balanced:
 
-- parentheses/brackets/braces
-- quoted strings (single/double/template)
+- parentheses, brackets, and braces
+- quoted strings (single, double, template)
 - line and block comments
 
 This prevents partial malformed captures.
@@ -86,7 +107,7 @@ Default rules:
 
 - `commutative-binary`: swaps operands for commutative operators (`+`, `*`, `&`, `|`, `^`, `==`, `===`, `!=`, `!==`)
 - `object-literal-property-order`: swaps adjacent object-literal `key: value` entries when safe
-- `redundant-parentheses`: adds/removes extra parentheses around binary expressions
+- `redundant-parentheses`: adds and removes extra parentheses around binary expressions
 
 Disable all isomorphisms with:
 
@@ -94,79 +115,48 @@ Disable all isomorphisms with:
 sgrep 'const total = :[x] + :[y];' src --no-isomorphisms
 ```
 
-Note: patterns containing template wildcard `...` skip AST-based isomorphism expansion to avoid ambiguity with JS spread syntax.
+Patterns containing template wildcard `...` intentionally skip AST-based isomorphism expansion to avoid ambiguity with JS spread syntax.
+
+## Output modes
+
+- Default output is compact text grouped by file.
+- `--json` returns the full result object for machine consumers.
+
+## Safety model
+
+- Scope and pattern-input file paths are constrained to the nearest git repository root when available.
+- If no git root is found, paths are constrained to `cwd`.
+- Compact output escapes control characters in matched previews and file paths.
 
 ## Programmatic API
 
 ```ts
 import {
-  searchProject,
-  sgrep,
-  runSearchCommand,
-  formatSearchOutput,
-  expandPatternIsomorphisms,
   DEFAULT_ISOMORPHISM_RULES,
-  DEFAULT_SEARCHABLE_EXTENSIONS,
   DEFAULT_SEARCH_EXCLUDED_DIRECTORIES,
-  type SgrepOptions,
-  type SgrepResult,
-  type SearchCommandFlags,
+  DEFAULT_SEARCHABLE_EXTENSIONS,
+  expandPatternIsomorphisms,
+  formatSearchOutput,
+  runSearchCommand,
+  searchProject,
   type ExpandIsomorphismsOptions,
   type IsomorphismRule,
+  type SearchCommandFlags,
+  type SgrepOptions,
+  type SgrepResult,
 } from "@claudiu-ceia/sgrep";
 ```
 
-### `searchProject(patternInput, options?)` / `sgrep(patternInput, options?)`
+Core APIs:
 
-```ts
-function searchProject(patternInput: string, options?: SgrepOptions): Promise<SgrepResult>;
-```
+- `searchProject(patternInput, options?)`
+- `runSearchCommand(patternInput, scope, flags)` for CLI embedding
+- `formatSearchOutput(result, { color? })` for compact text formatting
+- `expandPatternIsomorphisms(pattern, options?)` for rule-driven expansion
 
-Primary API for structural search. `patternInput` may be inline text or a file path.
+## Result schema
 
-Key `SgrepOptions` fields:
-
-- `scope?: string` default `"."`
-- `cwd?: string`
-- `isomorphisms?: boolean` default `true`
-- `concurrency?: number` default `8`
-- `verbose?: number` and `logger?: (line: string) => void`
-- `extensions?: readonly string[]`
-- `excludedDirectories?: readonly string[]`
-- `encoding?: BufferEncoding` default `"utf8"`
-
-### `runSearchCommand(patternInput, scope, flags)`
-
-```ts
-function runSearchCommand(
-  patternInput: string,
-  scope: string | undefined,
-  flags: SearchCommandFlags,
-): Promise<SgrepResult>;
-```
-
-CLI-facing wrapper that maps command flags into `searchProject` options.
-
-### `formatSearchOutput(result, options?)`
-
-```ts
-function formatSearchOutput(result: SgrepResult, options?: { color?: boolean }): string;
-```
-
-Formats compact text output (`//file` headers and `line: preview` entries). Returns `""` when no matches are present.
-
-### Isomorphism API
-
-```ts
-function expandPatternIsomorphisms(pattern: string, options?: ExpandIsomorphismsOptions): string[];
-```
-
-- `DEFAULT_ISOMORPHISM_RULES`: built-in rule registry
-- `IsomorphismRule`: extension contract for custom rule sets
-
-## Result Schema
-
-`searchProject`/`runSearchCommand` return:
+`searchProject` and `runSearchCommand` return:
 
 ```ts
 type SgrepResult = {
@@ -189,4 +179,15 @@ type SgrepResult = {
     }>;
   }>;
 };
+```
+
+## Development
+
+From monorepo root:
+
+```bash
+bun run sgrep -- --help
+bun test packages/sgrep/__tests__
+bun test --coverage packages/sgrep/__tests__
+bun run typecheck
 ```

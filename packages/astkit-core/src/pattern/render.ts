@@ -3,7 +3,7 @@ import { tokenizeTemplate } from "./syntax.ts";
 import type { CompiledReplacementTemplate } from "./types.ts";
 import { ELLIPSIS_CAPTURE_PREFIX } from "./types.ts";
 
-export type RenderTemplateOptions = {
+type RenderTemplateOptions = {
   preserveLayoutFrom?: string;
 };
 

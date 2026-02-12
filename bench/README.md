@@ -8,7 +8,7 @@ This repo uses `mitata` for benchmarking.
 bun run bench
 ```
 
-## Regression Check (Optional)
+## Regression check (optional)
 
 Benchmarks are noisy across machines. The regression check compares against a local baseline file.
 

@@ -17,9 +17,6 @@ export async function searchProject(
   return runSearchPhases(invocation.search, invocation.options);
 }
 
-/** Alias of {@link searchProject}. */
-export const sgrep = searchProject;
-
 async function runSearchPhases(
   search: ParsedSearchSpec,
   options: SgrepOptions,

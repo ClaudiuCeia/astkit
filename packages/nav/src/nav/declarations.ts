@@ -377,7 +377,7 @@ function highlightExportedDeclaration(
 ): string {
   let out = text;
 
-  // Highlight `export ... <kind> <Name>` in one pass so ANSI escapes don't break follow-up matches.
+  // Highlight `export ... <kind> <Name>` in one pass so ANSI escapes don't break subsequent matches.
   out = out.replace(
     /\bexport\s+((?:(?:declare|default|async)\s+)*)\b(function|class|interface|enum|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
     (_m, modifiers: string, kind: string, name: string) => {
@@ -840,7 +840,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
   };
 }
 
-export type DeclarationsCommandFlags = {
+type DeclarationsCommandFlags = {
   json?: boolean;
   "no-color"?: boolean;
 };
