@@ -46,6 +46,7 @@ export type CodeRankResult = {
 };
 
 export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankResult> {
+  const limit = normalizeLimit(options.limit);
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const boundary = createWorkspaceBoundary(cwd);
   const scope = options.scope ?? ".";
@@ -93,7 +94,9 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
       }
 
       const declarationSourceFile = declaration.getSourceFile();
-      const declarationStart = declaration.getStart(declarationSourceFile);
+      const declarationStart =
+        ts.getNameOfDeclaration(declaration)?.getStart(declarationSourceFile) ??
+        declaration.getStart(declarationSourceFile);
       const declarationKey = `${declarationSourceFile.fileName}:${declarationStart}:${exportedSymbol.getName()}`;
       if (seenDeclarations.has(declarationKey)) {
         continue;
@@ -126,7 +129,6 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
   }
 
   symbols.sort(compareRankedSymbols);
-  const limit = normalizeLimit(options.limit);
   const rankedSymbols = limit === null ? symbols : symbols.slice(0, limit);
 
   return {
@@ -268,5 +270,9 @@ function normalizeLimit(limit: number | undefined): number | null {
     return null;
   }
 
-  return Math.max(0, Math.floor(limit));
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new RangeError("limit must be a non-negative safe integer");
+  }
+
+  return limit;
 }

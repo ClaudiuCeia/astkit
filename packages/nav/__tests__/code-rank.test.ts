@@ -23,8 +23,15 @@ test("rankCode sorts symbols by reference strength", async () => {
     expect(cold).toBeDefined();
     expect(hot!.referenceCount).toBeGreaterThan(warm!.referenceCount);
     expect(warm!.referenceCount).toBeGreaterThan(cold!.referenceCount);
+    expect(hot).toMatchObject({ file: "a.ts", line: 1, character: 17 });
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("rankCode rejects invalid limits before scanning", async () => {
+  for (const limit of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expect(rankCode({ limit })).rejects.toThrow("limit must be a non-negative safe integer");
   }
 });
 
