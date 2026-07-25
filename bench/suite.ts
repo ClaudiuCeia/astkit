@@ -1,10 +1,21 @@
 import { bench, group, summary } from "mitata";
 import { searchProject } from "@claudiu-ceia/sgrep";
 import { patchProject } from "@claudiu-ceia/spatch";
+import { findTemplateMatches } from "../packages/astkit-core/src/pattern/match.ts";
+import { compileTemplate } from "../packages/astkit-core/src/pattern/syntax.ts";
 import { createTsFixture } from "./suites/fixtures.ts";
 
 export function defineBenches(): void {
   summary(() => {
+    group("core matcher", () => {
+      const pattern = compileTemplate("start(:[first] MID :[second] END)");
+      const source = `start(${"value MID ".repeat(1_000)}value)`;
+
+      bench("core matcher: repeated late-literal miss", () => {
+        findTemplateMatches(source, pattern);
+      });
+    });
+
     group("sgrep", () => {
       const pattern = "const :[name] = :[value];";
 

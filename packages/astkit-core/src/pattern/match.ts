@@ -23,6 +23,12 @@ type MatchResult = {
 type SourceLexemes = {
   spans: readonly LexemeSpan[];
   byStart: ReadonlyMap<number, LexemeSpan>;
+  literalStarts: Map<TextToken, readonly number[]>;
+};
+
+type LiteralStarts = {
+  values: readonly number[];
+  startIndex: number;
 };
 
 const MAX_CONSTRAINED_CAPTURE_LENGTH = 2048;
@@ -35,12 +41,14 @@ export function findTemplateMatches(text: string, template: CompiledTemplate): T
   const sourceLexemes: SourceLexemes = {
     spans,
     byStart: new Map(spans.map((span) => [span.start, span])),
+    literalStarts: new Map(),
   };
-  const anchorStarts =
+  const anchorCandidates =
     anchor && firstToken?.kind === "text"
       ? findLiteralStarts(text, firstToken, 0, sourceLexemes)
       : null;
-  let anchorIndex = 0;
+  const anchorStarts = anchorCandidates?.values ?? null;
+  let anchorIndex = anchorCandidates?.startIndex ?? 0;
   let cursor = 0;
 
   while (cursor <= text.length) {
@@ -105,9 +113,13 @@ function matchTokens(
       return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures, sourceLexemes);
     }
 
+    if (!haveFutureLiteralCandidates(text, tokens, tokenIndex + 1, cursor, sourceLexemes)) {
+      return null;
+    }
+
     const nextStarts = findLiteralStarts(text, nextLiteral, cursor, sourceLexemes);
-    for (let index = nextStarts.length - 1; index >= 0; index -= 1) {
-      const nextStart = nextStarts[index];
+    for (let index = nextStarts.values.length - 1; index >= nextStarts.startIndex; index -= 1) {
+      const nextStart = nextStarts.values[index];
       if (nextStart === undefined) {
         continue;
       }
@@ -148,8 +160,16 @@ function matchTokens(
     return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures, sourceLexemes);
   }
 
+  if (!haveFutureLiteralCandidates(text, tokens, tokenIndex + 1, cursor, sourceLexemes)) {
+    return null;
+  }
+
   const nextStarts = findLiteralStarts(text, nextLiteral, cursor, sourceLexemes);
-  for (const nextStart of nextStarts) {
+  for (let index = nextStarts.startIndex; index < nextStarts.values.length; index += 1) {
+    const nextStart = nextStarts.values[index];
+    if (nextStart === undefined) {
+      continue;
+    }
     const bounds = trimTriviaBounds(text, cursor, nextStart);
     const chunk = text.slice(bounds.start, bounds.end);
     if (isBalancedChunk(chunk)) {
@@ -182,6 +202,26 @@ function findNextLiteral(tokens: readonly TemplateToken[], fromIndex: number): T
   }
 
   return null;
+}
+
+function haveFutureLiteralCandidates(
+  text: string,
+  tokens: readonly TemplateToken[],
+  fromIndex: number,
+  cursor: number,
+  sourceLexemes: SourceLexemes,
+): boolean {
+  for (let index = fromIndex; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token || token.kind !== "text" || getLiteralLexemes(token).length === 0) {
+      continue;
+    }
+    const starts = findLiteralStarts(text, token, cursor, sourceLexemes);
+    if (starts.startIndex >= starts.values.length) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function captureHole(
@@ -228,24 +268,40 @@ function findLiteralStarts(
   literal: TextToken,
   fromIndex: number,
   sourceLexemes: SourceLexemes,
-): number[] {
-  const starts: number[] = [];
+): LiteralStarts {
   const lexemes = getLiteralLexemes(literal);
   const firstLexeme = lexemes[0];
   if (!firstLexeme) {
-    return starts;
+    return { values: [], startIndex: 0 };
   }
 
-  for (const span of sourceLexemes.spans) {
-    if (span.start < fromIndex || span.value !== firstLexeme) {
-      continue;
+  let starts = sourceLexemes.literalStarts.get(literal);
+  if (!starts) {
+    const matches: number[] = [];
+    for (const span of sourceLexemes.spans) {
+      if (span.value !== firstLexeme) {
+        continue;
+      }
+      if (matchTextToken(text, literal, span.start, false, sourceLexemes)) {
+        matches.push(span.start);
+      }
     }
-    if (matchTextToken(text, literal, span.start, false, sourceLexemes)) {
-      starts.push(span.start);
+    starts = matches;
+    sourceLexemes.literalStarts.set(literal, starts);
+  }
+
+  let low = 0;
+  let high = starts.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((starts[middle] ?? Number.POSITIVE_INFINITY) < fromIndex) {
+      low = middle + 1;
+    } else {
+      high = middle;
     }
   }
 
-  return starts;
+  return { values: starts, startIndex: low };
 }
 
 function matchTextToken(
