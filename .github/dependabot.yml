@@ -7,6 +7,11 @@ updates:
     groups:
       development-dependencies:
         dependency-type: "development"
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7"]
+      - dependency-name: "@types/node"
+        versions: [">=23"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
