@@ -233,8 +233,21 @@ export function tokenizeTemplate(source: string): TemplateToken[] {
     );
   }
 
+  const mergedTokens: RawTemplateToken[] = [];
+  for (const token of parsed.value) {
+    const previous = mergedTokens[mergedTokens.length - 1];
+    if (token.kind === "text" && previous?.kind === "text") {
+      mergedTokens[mergedTokens.length - 1] = {
+        kind: "text",
+        value: previous.value + token.value,
+      };
+      continue;
+    }
+    mergedTokens.push(token);
+  }
+
   let ellipsisIndex = 0;
-  return parsed.value.map((token) => resolveRawToken(token, () => ellipsisIndex++));
+  return mergedTokens.map((token) => resolveRawToken(token, () => ellipsisIndex++));
 }
 
 export function compileTemplate(source: string): CompiledTemplate {

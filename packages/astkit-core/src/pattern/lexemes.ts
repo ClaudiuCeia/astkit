@@ -28,6 +28,12 @@ type LexemeLayout = {
   trailingTrivia: string;
 };
 
+export type LexemeSpan = {
+  value: string;
+  start: number;
+  end: number;
+};
+
 const MULTI_CHAR_OPERATORS = [
   ">>>=",
   "===",
@@ -171,6 +177,24 @@ export function analyzeLexemeLayout(source: string): LexemeLayout | null {
     separators,
     trailingTrivia,
   };
+}
+
+export function scanLexemeSpans(source: string): LexemeSpan[] | null {
+  const parsed = lexemeScannerParser({ text: source, index: 0 });
+  if (!parsed.success) {
+    return null;
+  }
+
+  const spans: LexemeSpan[] = [];
+  let cursor = 0;
+  for (const part of parsed.value) {
+    const start = cursor;
+    cursor += part.value.length;
+    if (part.kind === "lexeme") {
+      spans.push({ value: part.value, start, end: cursor });
+    }
+  }
+  return spans;
 }
 
 export function skipTrivia(source: string, fromIndex: number): number {

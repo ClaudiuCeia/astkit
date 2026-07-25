@@ -1,5 +1,11 @@
 import { isBalancedChunk } from "./balance.ts";
-import { collectLiteralLexemes, skipTrivia, trimTriviaBounds } from "./lexemes.ts";
+import {
+  collectLiteralLexemes,
+  type LexemeSpan,
+  scanLexemeSpans,
+  skipTrivia,
+  trimTriviaBounds,
+} from "./lexemes.ts";
 import type {
   CompiledTemplate,
   HoleToken,
@@ -14,21 +20,39 @@ type MatchResult = {
   captures: Map<string, string>;
 };
 
+type SourceLexemes = {
+  spans: readonly LexemeSpan[];
+  byStart: ReadonlyMap<number, LexemeSpan>;
+};
+
 const MAX_CONSTRAINED_CAPTURE_LENGTH = 2048;
 
 export function findTemplateMatches(text: string, template: CompiledTemplate): TemplateMatch[] {
   const matches: TemplateMatch[] = [];
   const firstToken = template.tokens[0];
   const anchor = firstToken?.kind === "text" ? (getLiteralLexemes(firstToken)[0] ?? null) : null;
+  const spans = scanLexemeSpans(text) ?? [];
+  const sourceLexemes: SourceLexemes = {
+    spans,
+    byStart: new Map(spans.map((span) => [span.start, span])),
+  };
+  const anchorStarts =
+    anchor && firstToken?.kind === "text"
+      ? findLiteralStarts(text, firstToken, 0, sourceLexemes)
+      : null;
+  let anchorIndex = 0;
   let cursor = 0;
 
   while (cursor <= text.length) {
-    const start = anchor ? text.indexOf(anchor, cursor) : skipTrivia(text, cursor);
-    if (start < 0) {
+    while (anchorStarts && (anchorStarts[anchorIndex] ?? Number.POSITIVE_INFINITY) < cursor) {
+      anchorIndex += 1;
+    }
+    const start = anchorStarts ? (anchorStarts[anchorIndex++] ?? -1) : skipTrivia(text, cursor);
+    if (start < 0 || (anchorStarts && start === -1)) {
       break;
     }
 
-    const result = matchTokens(text, template.tokens, 0, start, new Map());
+    const result = matchTokens(text, template.tokens, 0, start, new Map(), sourceLexemes);
     if (!result || result.end <= start) {
       cursor = start + 1;
       continue;
@@ -52,6 +76,7 @@ function matchTokens(
   tokenIndex: number,
   cursor: number,
   captures: ReadonlyMap<string, string>,
+  sourceLexemes: SourceLexemes,
 ): MatchResult | null {
   const token = tokens[tokenIndex];
   if (!token) {
@@ -59,12 +84,12 @@ function matchTokens(
   }
 
   if (token.kind === "text") {
-    const matched = matchTextToken(text, token, cursor, true);
+    const matched = matchTextToken(text, token, cursor, true, sourceLexemes);
     if (!matched) {
       return null;
     }
 
-    return matchTokens(text, tokens, tokenIndex + 1, matched.end, captures);
+    return matchTokens(text, tokens, tokenIndex + 1, matched.end, captures, sourceLexemes);
   }
 
   if (token.kind === "ellipsis") {
@@ -77,10 +102,10 @@ function matchTokens(
       }
 
       const nextCaptures = captureEllipsis(captures, token.index, chunk);
-      return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
+      return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures, sourceLexemes);
     }
 
-    const nextStarts = findLiteralStarts(text, nextLiteral, cursor);
+    const nextStarts = findLiteralStarts(text, nextLiteral, cursor, sourceLexemes);
     for (let index = nextStarts.length - 1; index >= 0; index -= 1) {
       const nextStart = nextStarts[index];
       if (nextStart === undefined) {
@@ -90,7 +115,14 @@ function matchTokens(
       const chunk = text.slice(bounds.start, bounds.end);
       if (isBalancedChunk(chunk)) {
         const nextCaptures = captureEllipsis(captures, token.index, chunk);
-        const nested = matchTokens(text, tokens, tokenIndex + 1, nextStart, nextCaptures);
+        const nested = matchTokens(
+          text,
+          tokens,
+          tokenIndex + 1,
+          nextStart,
+          nextCaptures,
+          sourceLexemes,
+        );
         if (nested) {
           return nested;
         }
@@ -113,17 +145,24 @@ function matchTokens(
       return null;
     }
 
-    return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures);
+    return matchTokens(text, tokens, tokenIndex + 1, text.length, nextCaptures, sourceLexemes);
   }
 
-  const nextStarts = findLiteralStarts(text, nextLiteral, cursor);
+  const nextStarts = findLiteralStarts(text, nextLiteral, cursor, sourceLexemes);
   for (const nextStart of nextStarts) {
     const bounds = trimTriviaBounds(text, cursor, nextStart);
     const chunk = text.slice(bounds.start, bounds.end);
     if (isBalancedChunk(chunk)) {
       const nextCaptures = captureHole(captures, token, chunk);
       if (nextCaptures) {
-        const nested = matchTokens(text, tokens, tokenIndex + 1, nextStart, nextCaptures);
+        const nested = matchTokens(
+          text,
+          tokens,
+          tokenIndex + 1,
+          nextStart,
+          nextCaptures,
+          sourceLexemes,
+        );
         if (nested) {
           return nested;
         }
@@ -184,7 +223,12 @@ function captureEllipsis(
   return next;
 }
 
-function findLiteralStarts(text: string, literal: TextToken, fromIndex: number): number[] {
+function findLiteralStarts(
+  text: string,
+  literal: TextToken,
+  fromIndex: number,
+  sourceLexemes: SourceLexemes,
+): number[] {
   const starts: number[] = [];
   const lexemes = getLiteralLexemes(literal);
   const firstLexeme = lexemes[0];
@@ -192,16 +236,13 @@ function findLiteralStarts(text: string, literal: TextToken, fromIndex: number):
     return starts;
   }
 
-  let probe = fromIndex;
-  while (probe <= text.length) {
-    const start = text.indexOf(firstLexeme, probe);
-    if (start < 0) {
-      break;
+  for (const span of sourceLexemes.spans) {
+    if (span.start < fromIndex || span.value !== firstLexeme) {
+      continue;
     }
-    if (matchTextToken(text, literal, start, false)) {
-      starts.push(start);
+    if (matchTextToken(text, literal, span.start, false, sourceLexemes)) {
+      starts.push(span.start);
     }
-    probe = start + 1;
   }
 
   return starts;
@@ -212,6 +253,7 @@ function matchTextToken(
   token: TextToken,
   cursor: number,
   allowLeadingTrivia: boolean,
+  sourceLexemes: SourceLexemes,
 ): { end: number } | null {
   const lexemes = getLiteralLexemes(token);
   if (lexemes.length === 0) {
@@ -222,10 +264,11 @@ function matchTextToken(
   let probe = allowLeadingTrivia ? skipTrivia(text, cursor) : cursor;
   for (let index = 0; index < lexemes.length; index += 1) {
     const lexeme = lexemes[index];
-    if (!lexeme || !text.startsWith(lexeme, probe)) {
+    const sourceLexeme = sourceLexemes.byStart.get(probe);
+    if (!lexeme || sourceLexeme?.value !== lexeme) {
       return null;
     }
-    probe += lexeme.length;
+    probe = sourceLexeme.end;
     if (index < lexemes.length - 1) {
       probe = skipTrivia(text, probe);
     }
