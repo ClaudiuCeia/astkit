@@ -15,12 +15,13 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import { collectLiteralLexemes, hasTrailingTrivia } from "./lexemes.ts";
-import type {
-  CompiledTemplate,
-  EllipsisToken,
-  HoleToken,
-  TemplateToken,
-  TextToken,
+import {
+  ELLIPSIS_CAPTURE_PREFIX,
+  type CompiledTemplate,
+  type EllipsisToken,
+  type HoleToken,
+  type TemplateToken,
+  type TextToken,
 } from "./types.ts";
 
 const HOLE_INNER_NAME_PATTERN = /(?:[A-Za-z_][A-Za-z0-9_]*|_)/;
@@ -244,6 +245,13 @@ export function compileTemplate(source: string): CompiledTemplate {
   const tokens = tokenizeTemplate(source);
   if (tokens.length === 0) {
     throw new Error("Template did not produce any tokens.");
+  }
+
+  const reservedHole = tokens.find(
+    (token) => token.kind === "hole" && token.name.startsWith(ELLIPSIS_CAPTURE_PREFIX),
+  );
+  if (reservedHole?.kind === "hole") {
+    throw new Error(`Hole name "${reservedHole.name}" uses a reserved prefix.`);
   }
 
   for (let index = 0; index < tokens.length - 1; index += 1) {

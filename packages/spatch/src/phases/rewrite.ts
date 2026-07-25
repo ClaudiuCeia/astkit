@@ -14,6 +14,7 @@ import {
   nowNs,
   nsToMs,
   toLineCharacter,
+  validateReplacementTemplate,
 } from "@claudiu-ceia/astkit-core";
 import { applyReplacementSpans } from "../replacement-spans.ts";
 import { writeFileIfUnchangedAtomically } from "../file-write.ts";
@@ -74,10 +75,10 @@ export async function rewriteProject(
       compiledReplacement: CompiledReplacementTemplate;
     }
   >();
-  patchVariants.set("\n", {
-    compiledPattern: compileTemplate(patch.pattern),
-    compiledReplacement: compileReplacementTemplate(patch.replacement),
-  });
+  const compiledPattern = compileTemplate(patch.pattern);
+  const compiledReplacement = compileReplacementTemplate(patch.replacement);
+  validateReplacementTemplate(compiledPattern, compiledReplacement);
+  patchVariants.set("\n", { compiledPattern, compiledReplacement });
   if (verbose > 0) {
     log(`[spatch] compilePattern ${formatMs(nsToMs(nowNs() - compileStarted))}`);
   }
@@ -384,6 +385,7 @@ function resolvePatchVariant(input: {
     compiledPattern: compileTemplate(pattern),
     compiledReplacement: compileReplacementTemplate(replacementTemplate),
   };
+  validateReplacementTemplate(variant.compiledPattern, variant.compiledReplacement);
   input.patchVariants.set(input.lineEnding, variant);
   return variant;
 }

@@ -1,9 +1,9 @@
 import { analyzeLexemeLayout } from "./lexemes.ts";
 import { tokenizeTemplate } from "./syntax.ts";
-import type { CompiledReplacementTemplate } from "./types.ts";
+import type { CompiledReplacementTemplate, CompiledTemplate } from "./types.ts";
 import { ELLIPSIS_CAPTURE_PREFIX } from "./types.ts";
 
-type RenderTemplateOptions = {
+export type RenderTemplateOptions = {
   preserveLayoutFrom?: string;
 };
 
@@ -30,6 +30,32 @@ export function compileReplacementTemplate(source: string): CompiledReplacementT
   };
 }
 
+export function validateReplacementTemplate(
+  pattern: CompiledTemplate,
+  replacement: CompiledReplacementTemplate,
+): void {
+  const holeNames = new Set<string>();
+  for (const token of pattern.tokens) {
+    if (token.kind === "hole" && !token.anonymous) {
+      holeNames.add(token.name);
+    }
+  }
+  const ellipsisIndexes = new Set(
+    pattern.tokens.filter((token) => token.kind === "ellipsis").map((token) => token.index),
+  );
+
+  for (const token of replacement.tokens) {
+    if (token.kind === "hole" && !token.anonymous && !holeNames.has(token.name)) {
+      throw new Error(`Replacement uses unknown hole "${token.name}".`);
+    }
+    if (token.kind === "ellipsis" && !ellipsisIndexes.has(token.index)) {
+      throw new Error(
+        `Replacement uses ellipsis #${token.index + 1} but pattern did not capture it.`,
+      );
+    }
+  }
+}
+
 export function renderCompiledTemplate(
   template: CompiledReplacementTemplate,
   captures: Record<string, string>,
@@ -45,13 +71,13 @@ export function renderCompiledTemplate(
     }
 
     if (token.kind === "ellipsis") {
-      const value = captures[`${ELLIPSIS_CAPTURE_PREFIX}${token.index}`];
-      if (value === undefined) {
+      const captureName = `${ELLIPSIS_CAPTURE_PREFIX}${token.index}`;
+      if (!Object.hasOwn(captures, captureName)) {
         throw new Error(
           `Replacement uses ellipsis #${token.index + 1} but pattern did not capture it.`,
         );
       }
-      rendered += value;
+      rendered += captures[captureName];
       continue;
     }
 
@@ -59,12 +85,11 @@ export function renderCompiledTemplate(
       continue;
     }
 
-    const value = captures[token.name];
-    if (value === undefined) {
+    if (!Object.hasOwn(captures, token.name)) {
       throw new Error(`Replacement uses unknown hole "${token.name}".`);
     }
 
-    rendered += value;
+    rendered += captures[token.name];
   }
 
   if (!options.preserveLayoutFrom) {
@@ -103,8 +128,9 @@ function preserveTriviaLayout(source: string, rendered: string): string {
     }
     parts.push(lexeme);
     if (index < renderedLayout.lexemes.length - 1) {
-      const boundaryTrivia =
-        sourceLayout.separators[index] ?? renderedLayout.separators[index] ?? "";
+      const sourceTrivia = sourceLayout.separators[index] ?? "";
+      const renderedTrivia = renderedLayout.separators[index] ?? "";
+      const boundaryTrivia = sourceTrivia.length === 0 ? renderedTrivia : sourceTrivia;
       parts.push(boundaryTrivia);
     }
   }

@@ -458,7 +458,7 @@ test("patchProject throws for unknown replacement holes", async () => {
 
   try {
     const file = path.join(workspace, "sample.ts");
-    await writeFile(file, "const value = 1;\n", "utf8");
+    await writeFile(file, "const unrelated = 2;\n", "utf8");
 
     const patch = ["-const :[name] = :[value];", "+let :[missing] = :[value];"].join("\n");
 
@@ -472,7 +472,7 @@ test("patchProject throws for unknown replacement holes", async () => {
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown).toEqual(new Error('Replacement uses unknown hole "missing".'));
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
