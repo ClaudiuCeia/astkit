@@ -106,7 +106,8 @@ Repeated names enforce equality:
 Regex constraint safety limits:
 
 - max regex constraint length: `256` characters
-- disallowed in constraints: lookarounds, backreferences, nested quantified groups (for example `([a-z]+)+`)
+- disallowed in constraints: lookarounds, backreferences, nested quantified groups, nullable repetition,
+  overlapping alternatives, and overlapping sibling repetitions
 - constrained captures longer than `2048` characters are rejected during matching
 
 ## Matching and formatting behavior
