@@ -67,6 +67,24 @@ test("runPatchCommand resolves patch document from file using cwd", async () => 
   }
 });
 
+test("runPatchCommand does not reinterpret patch file contents as another path", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const sourceFile = path.join(workspace, "sample.ts");
+    await writeFile(sourceFile, "foo\n", "utf8");
+    await writeFile(path.join(workspace, "rule.spatch"), "-foo", "utf8");
+    await writeFile(path.join(workspace, "-foo"), "-bar", "utf8");
+
+    const result = await runPatchCommand("rule.spatch", sourceFile, { cwd: workspace });
+
+    expect(result.totalMatches).toBe(1);
+    expect(await readFile(sourceFile, "utf8")).toBe("\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
 test("runPatchCommand can read patch document from stdin when patchInput is '-'", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
 

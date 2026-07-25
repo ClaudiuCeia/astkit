@@ -1,6 +1,5 @@
 import { stderr as processStderr, stdin as processStdin } from "node:process";
 import { buildCommand } from "@stricli/core";
-import { resolveTextInput } from "@claudiu-ceia/astkit-core";
 import {
   patchCommandFlagParameters,
   validatePatchCommandFlags,
@@ -148,7 +147,7 @@ async function resolvePatchInput(
   },
 ): Promise<string> {
   if (patchInput !== "-") {
-    return await resolveTextInput(patchInput, { cwd: options.cwd, encoding: options.encoding });
+    return patchInput;
   }
 
   const reader =
