@@ -19,14 +19,14 @@
     },
     "packages/astkit": {
       "name": "@claudiu-ceia/astkit",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "bin": {
         "astkit": "./dist/cli.js",
       },
       "dependencies": {
-        "@claudiu-ceia/nav": "^0.2.0",
-        "@claudiu-ceia/sgrep": "^0.2.0",
-        "@claudiu-ceia/spatch": "^0.3.0",
+        "@claudiu-ceia/nav": "^0.3.0",
+        "@claudiu-ceia/sgrep": "^0.3.0",
+        "@claudiu-ceia/spatch": "^0.4.0",
         "@stricli/core": "^1.3.0",
       },
       "peerDependencies": {
@@ -35,19 +35,19 @@
     },
     "packages/astkit-core": {
       "name": "@claudiu-ceia/astkit-core",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "dependencies": {
         "@claudiu-ceia/combine": "^0.6.0",
       },
     },
     "packages/nav": {
       "name": "@claudiu-ceia/nav",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
         "nav": "./dist/cli.js",
       },
       "dependencies": {
-        "@claudiu-ceia/astkit-core": "^0.2.0",
+        "@claudiu-ceia/astkit-core": "^0.3.0",
         "@claudiu-ceia/combine": "^0.6.0",
         "@stricli/core": "^1.3.0",
         "chalk": "^5.6.2",
@@ -58,12 +58,12 @@
     },
     "packages/sgrep": {
       "name": "@claudiu-ceia/sgrep",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "bin": {
         "sgrep": "./dist/cli.js",
       },
       "dependencies": {
-        "@claudiu-ceia/astkit-core": "^0.2.1",
+        "@claudiu-ceia/astkit-core": "^0.3.0",
         "@stricli/core": "^1.3.0",
         "chalk": "^5.6.2",
         "typescript": "^6.0.3",
@@ -71,12 +71,12 @@
     },
     "packages/spatch": {
       "name": "@claudiu-ceia/spatch",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "bin": {
         "spatch": "./dist/cli.js",
       },
       "dependencies": {
-        "@claudiu-ceia/astkit-core": "^0.2.1",
+        "@claudiu-ceia/astkit-core": "^0.3.0",
         "@claudiu-ceia/combine": "^0.6.0",
         "@stricli/core": "^1.3.0",
         "chalk": "^5.6.2",

@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/sgrep",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Structural grep for TS/JS using metavariable templates.",
   "homepage": "https://github.com/ClaudiuCeia/astkit/tree/main/packages/sgrep#readme",
   "bugs": {
@@ -36,7 +36,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@claudiu-ceia/astkit-core": "^0.2.1",
+    "@claudiu-ceia/astkit-core": "^0.3.0",
     "@stricli/core": "^1.3.0",
     "chalk": "^5.6.2",
     "typescript": "^6.0.3"
