@@ -723,6 +723,48 @@ function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+function findExportSiteDeclaration(
+  sourceFile: ts.SourceFile,
+  exportedSymbol: ts.Symbol,
+  checker: ts.TypeChecker,
+): ts.Declaration | null {
+  const direct = exportedSymbol
+    .getDeclarations()
+    ?.find((declaration) => declaration.getSourceFile().fileName === sourceFile.fileName);
+  if (direct) {
+    return direct;
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier) {
+      continue;
+    }
+    if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+      const specifier = statement.exportClause.elements.find(
+        (element) => element.name.text === exportedSymbol.getName(),
+      );
+      if (specifier) {
+        return specifier;
+      }
+      continue;
+    }
+
+    if (!statement.exportClause) {
+      const moduleSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
+      if (
+        moduleSymbol &&
+        checker
+          .getExportsOfModule(moduleSymbol)
+          .some((candidate) => candidate.getName() === exportedSymbol.getName())
+      ) {
+        return statement;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function getDeclarations(filePath: string): DeclarationsOutput {
   const cwd = path.resolve(process.cwd());
   const boundary = createWorkspaceBoundary(cwd);
@@ -750,15 +792,22 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
   const declarations: DeclarationInfo[] = [];
 
   for (const exp of exports) {
-    const decls = exp.getDeclarations();
+    const exportSite = findExportSiteDeclaration(sourceFile, exp, typeChecker);
+    if (!exportSite) continue;
+
+    const semanticSymbol =
+      exp.flags & ts.SymbolFlags.Alias ? typeChecker.getAliasedSymbol(exp) : exp;
+    const decls = semanticSymbol.getDeclarations();
     if (!decls || decls.length === 0) continue;
 
     const declaration = decls[0]!;
-    // Only include declarations from the target file
-    if (declaration.getSourceFile().fileName !== resolved) continue;
+    const declarationSourceFile = declaration.getSourceFile();
+    const isLocalDeclaration = declarationSourceFile.fileName === resolved;
 
     const kind = getDeclarationKind(declaration);
-    const declarationText = buildDeclarationText(sourceFile, declaration);
+    const declarationText = isLocalDeclaration
+      ? buildDeclarationText(declarationSourceFile, declaration)
+      : null;
     const type = (() => {
       // Prefer expanding type aliases to their RHS, so output resembles `deno doc`.
       if (ts.isTypeAliasDeclaration(declaration)) {
@@ -766,30 +815,30 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       }
 
       if (kind === "interface" || kind === "class" || kind === "enum" || kind === "type") {
-        return typeChecker.getDeclaredTypeOfSymbol(exp);
+        return typeChecker.getDeclaredTypeOfSymbol(semanticSymbol);
       }
 
-      return typeChecker.getTypeOfSymbol(exp);
+      return typeChecker.getTypeOfSymbol(semanticSymbol);
     })();
     const signature = typeChecker.typeToString(type, declaration, ts.TypeFormatFlags.NoTruncation);
-    const pos = fromPosition(sourceFile, declaration.getStart(sourceFile));
-    const endPos = fromPosition(sourceFile, declaration.end);
+    const pos = fromPosition(sourceFile, exportSite.getStart(sourceFile));
+    const endPos = fromPosition(sourceFile, exportSite.end);
 
     const info: DeclarationInfo = {
       name: exp.getName(),
       kind,
       signature,
       line: pos.line,
-      doc: formatDoc(exp, typeChecker),
+      doc: formatDoc(semanticSymbol, typeChecker),
       endLine: endPos.line,
       declarationText: declarationText ?? undefined,
     };
 
     // For classes and interfaces, enumerate members in source order.
-    if (kind === "class" && ts.isClassDeclaration(declaration)) {
+    if (isLocalDeclaration && kind === "class" && ts.isClassDeclaration(declaration)) {
       const members: MemberInfo[] = [];
       for (const member of declaration.members) {
-        const infoMember = buildClassMemberInfo(sourceFile, typeChecker, member);
+        const infoMember = buildClassMemberInfo(declarationSourceFile, typeChecker, member);
         if (infoMember) {
           members.push(infoMember);
         }
@@ -800,10 +849,10 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       }
     }
 
-    if (kind === "interface" && ts.isInterfaceDeclaration(declaration)) {
+    if (isLocalDeclaration && kind === "interface" && ts.isInterfaceDeclaration(declaration)) {
       const members: MemberInfo[] = [];
       for (const member of declaration.members) {
-        const infoMember = buildInterfaceMemberInfo(sourceFile, typeChecker, member);
+        const infoMember = buildInterfaceMemberInfo(declarationSourceFile, typeChecker, member);
         if (infoMember) {
           members.push(infoMember);
         }

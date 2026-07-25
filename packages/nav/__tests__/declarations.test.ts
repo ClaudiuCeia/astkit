@@ -108,6 +108,26 @@ test("handles file with no exports", () => {
   expect(result.declarations[0]!.name).toBe("getUserRole");
 });
 
+test("lists named, aliased, type-only, and star re-exports from barrels", () => {
+  const result = getDeclarations("barrel.ts");
+
+  expect(result.declarations.map((declaration) => declaration.name)).toEqual([
+    "makeUser",
+    "User",
+    "getUserRole",
+  ]);
+  expect(result.declarations.find((declaration) => declaration.name === "makeUser")?.kind).toBe(
+    "function",
+  );
+  expect(result.declarations.find((declaration) => declaration.name === "User")?.kind).toBe(
+    "interface",
+  );
+  expect(result.declarations.find((declaration) => declaration.name === "getUserRole")?.kind).toBe(
+    "function",
+  );
+  expect(result.declarations.every((declaration) => declaration.line > 0)).toBe(true);
+});
+
 test("formats declarations as compact text by default", () => {
   const result = getDeclarations("simple.ts");
   const output = formatDeclarationsOutput(result);
