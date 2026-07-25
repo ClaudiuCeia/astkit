@@ -9,26 +9,32 @@ export async function mapLimit<T, R>(
   mapper: (item: T, index: number) => Promise<R>,
   options: MapLimitOptions,
 ): Promise<R[]> {
-  const concurrency = Math.max(1, Math.floor(options.concurrency));
+  if (!Number.isFinite(options.concurrency) || options.concurrency <= 0) {
+    throw new RangeError("concurrency must be a positive finite number");
+  }
+  const concurrency = Math.floor(options.concurrency);
   if (items.length === 0) {
     return [];
   }
 
   if (concurrency === 1 || items.length === 1) {
-    const out: R[] = new Array(items.length);
+    const out: R[] = [];
+    out.length = items.length;
     for (let i = 0; i < items.length; i += 1) {
       out[i] = await mapper(items[i] as T, i);
     }
     return out;
   }
 
-  const out: R[] = new Array(items.length);
+  const out: R[] = [];
+  out.length = items.length;
   let nextIndex = 0;
-  let firstError: unknown | null = null;
+  let failed = false;
+  let firstError: unknown;
 
   async function worker(): Promise<void> {
     while (true) {
-      if (firstError) {
+      if (failed) {
         return;
       }
 
@@ -41,16 +47,17 @@ export async function mapLimit<T, R>(
       try {
         out[index] = await mapper(items[index] as T, index);
       } catch (error) {
+        failed = true;
         firstError = error;
         return;
       }
     }
   }
 
-  const workers = new Array(Math.min(concurrency, items.length)).fill(null).map(() => worker());
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
   await Promise.all(workers);
 
-  if (firstError) {
+  if (failed) {
     throw firstError;
   }
 
