@@ -2,7 +2,15 @@ export function createLineStarts(text: string): number[] {
   const starts = [0];
 
   for (let index = 0; index < text.length; index += 1) {
-    if (text[index] === "\n") {
+    const character = text[index];
+    if (character === "\r") {
+      if (text[index + 1] === "\n") {
+        index += 1;
+      }
+      starts.push(index + 1);
+      continue;
+    }
+    if (character === "\n" || character === "\u2028" || character === "\u2029") {
       starts.push(index + 1);
     }
   }
