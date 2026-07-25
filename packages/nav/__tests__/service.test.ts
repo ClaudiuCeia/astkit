@@ -72,6 +72,24 @@ test("toPosition and fromPosition round-trip", () => {
   expect(result.character).toBe(character);
 });
 
+test("toPosition validates numeric and source bounds", () => {
+  const { program } = createService(fixturesDir);
+  const sourceFile = program.getSourceFile(path.resolve(fixturesDir, "simple.ts"))!;
+
+  for (const line of [0, -1, 1.5, Number.NaN]) {
+    expect(() => toPosition(sourceFile, line, 1)).toThrow(
+      `Line must be a positive safe integer; received ${line}.`,
+    );
+  }
+  expect(() => toPosition(sourceFile, sourceFile.getLineStarts().length + 1, 1)).toThrow(
+    /is outside file range/,
+  );
+  expect(() => toPosition(sourceFile, 1, Number.POSITIVE_INFINITY)).toThrow(
+    "Character must be a positive safe integer; received Infinity.",
+  );
+  expect(() => toPosition(sourceFile, 1, 10_000)).toThrow(/is outside line 1 range/);
+});
+
 test("relativePath computes correct relative path", () => {
   const result = relativePath("/home/user/project", "/home/user/project/src/foo.ts");
   expect(result).toBe("src/foo.ts");
@@ -110,5 +128,24 @@ test("createService excludes tsconfig includes that resolve outside workspace bo
     expect(program.getSourceFile(outsideFile)).toBeUndefined();
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("createService reports semantic tsconfig diagnostics", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "nav-service-config-"));
+
+  try {
+    await writeFile(path.join(workspace, "index.ts"), "export const value = 1;\n", "utf8");
+    await writeFile(
+      path.join(workspace, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { definitelyNotACompilerOption: true } }),
+      "utf8",
+    );
+
+    expect(() => createService(workspace)).toThrow(
+      /Invalid tsconfig:\nUnknown compiler option 'definitelyNotACompilerOption'\./,
+    );
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
   }
 });

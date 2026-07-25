@@ -37,6 +37,12 @@ export function createService(
     }
     projectRoot = path.dirname(configPath);
     const parsed = ts.parseJsonConfigFileContent(config, ts.sys, projectRoot);
+    if (parsed.errors.length > 0) {
+      const diagnostics = parsed.errors
+        .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"))
+        .join("\n");
+      throw new Error(`Invalid tsconfig:\n${diagnostics}`);
+    }
     compilerOptions = parsed.options;
     fileNames = parsed.fileNames
       .map((fileName) => path.resolve(projectRoot, fileName))
@@ -74,7 +80,11 @@ export function createService(
   };
 
   const service = ts.createLanguageService(host);
-  const program = service.getProgram()!;
+  const program = service.getProgram();
+  if (!program) {
+    service.dispose();
+    throw new Error(`Failed to create TypeScript program for ${projectRoot}.`);
+  }
 
   return { service, program, projectRoot };
 }
@@ -95,6 +105,28 @@ function normalizeTargetFiles(
 
 /** Convert 1-indexed line:character to 0-indexed offset */
 export function toPosition(sourceFile: ts.SourceFile, line: number, character: number): number {
+  if (!Number.isSafeInteger(line) || line < 1) {
+    throw new RangeError(`Line must be a positive safe integer; received ${line}.`);
+  }
+  if (!Number.isSafeInteger(character) || character < 1) {
+    throw new RangeError(`Character must be a positive safe integer; received ${character}.`);
+  }
+
+  const lineStarts = sourceFile.getLineStarts();
+  if (line > lineStarts.length) {
+    throw new RangeError(`Line ${line} is outside file range 1-${lineStarts.length}.`);
+  }
+
+  const lineStart = lineStarts[line - 1] ?? 0;
+  let lineEnd = lineStarts[line] ?? sourceFile.text.length;
+  while (lineEnd > lineStart && /[\n\r\u2028\u2029]/u.test(sourceFile.text[lineEnd - 1] ?? "")) {
+    lineEnd -= 1;
+  }
+  const maxCharacter = lineEnd - lineStart + 1;
+  if (character > maxCharacter) {
+    throw new RangeError(`Character ${character} is outside line ${line} range 1-${maxCharacter}.`);
+  }
+
   return sourceFile.getPositionOfLineAndCharacter(line - 1, character - 1);
 }
 
