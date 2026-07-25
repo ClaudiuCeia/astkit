@@ -24,7 +24,7 @@ This root README stays repo-focused to avoid duplicating CLI docs across package
 Install the umbrella package for one entrypoint:
 
 ```bash
-npm install --save-dev @claudiu-ceia/astkit typescript
+npm install --save-dev @claudiu-ceia/astkit typescript@^6
 ```
 
 Or install individual tools:
@@ -32,7 +32,7 @@ Or install individual tools:
 ```bash
 npm install --save-dev @claudiu-ceia/sgrep
 npm install --save-dev @claudiu-ceia/spatch
-npm install --save-dev @claudiu-ceia/nav typescript
+npm install --save-dev @claudiu-ceia/nav typescript@^6
 ```
 
 ## Monorepo development
@@ -49,6 +49,8 @@ bun run nav -- --help
 
 ```bash
 bun run format:check
+bun run lint
+bun run audit
 bun run typecheck
 bun run build
 bun run test

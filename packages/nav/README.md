@@ -5,7 +5,7 @@ TypeScript language-service navigation utilities for exported declarations, defi
 ## Install
 
 ```bash
-npm install --save-dev @claudiu-ceia/nav typescript
+npm install --save-dev @claudiu-ceia/nav typescript@^6
 ```
 
 `@claudiu-ceia/nav` uses the target project's `typescript` installation.

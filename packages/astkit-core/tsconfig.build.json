@@ -6,10 +6,13 @@
     "declaration": true,
     "declarationMap": false,
     "sourceMap": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["node"],
     "outDir": "./dist",
     "rootDir": "./src",
     "rewriteRelativeImportExtensions": true,
-    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo"
   },
   "include": ["src/**/*.ts"]
 }

@@ -53,7 +53,7 @@ Structural code transformation using pattern matching.
 | Structural patching | `@claudiu-ceia/combine` | Comby-inspired structural matching/rewriting               |
 | Structural search   | TBD                     | Likely ast-grep or tree-sitter queries                     |
 | CLI framework       | `stricli`               | Zero deps, TS-first, nested subcommands, lazy loading      |
-| Target runtime      | Node.js >=18 / Bun      | No runtime-specific APIs in the tool itself                |
+| Target runtime      | Node.js >=22.12 / Bun   | No runtime-specific APIs in the tool itself                |
 
 ## Distribution
 

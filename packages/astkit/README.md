@@ -12,7 +12,7 @@ It bundles four command families behind one CLI:
 ## Install
 
 ```bash
-npm install --save-dev @claudiu-ceia/astkit typescript
+npm install --save-dev @claudiu-ceia/astkit typescript@^6
 ```
 
 `astkit` uses the target project's `typescript` installation for language-service operations.
