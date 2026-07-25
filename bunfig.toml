@@ -1,0 +1,3 @@
+[test]
+# Bun applies thresholds per loaded file, not only to the aggregate report.
+coverageThreshold = { lines = 0.60, functions = 0.50 }

@@ -68,5 +68,5 @@ jobs:
       - name: Node smoke test (spatch CLI)
         run: node packages/spatch/dist/cli.js --help
 
-      - name: Test
-        run: bun test
+      - name: Test with coverage
+        run: bun run test:coverage
