@@ -1,4 +1,4 @@
-import { opendir, stat } from "node:fs/promises";
+import { lstat, opendir } from "node:fs/promises";
 import path from "node:path";
 
 export const DEFAULT_SOURCE_EXTENSIONS = [
@@ -34,11 +34,15 @@ export async function collectPatchableFiles(
   options: CollectPatchableFilesOptions,
 ): Promise<string[]> {
   const scopePath = path.resolve(options.cwd, options.scope);
-  const scopeStats = await stat(scopePath);
+  const scopeStats = await lstat(scopePath);
   const extensionSet = new Set(
     (options.extensions ?? DEFAULT_SOURCE_EXTENSIONS).map(normalizeExtension),
   );
   const excludedDirectorySet = new Set(options.excludedDirectories ?? DEFAULT_EXCLUDED_DIRECTORIES);
+
+  if (scopeStats.isSymbolicLink()) {
+    throw new Error(`Explicit file scope cannot be a symbolic link: ${scopePath}`);
+  }
 
   if (scopeStats.isFile()) {
     return extensionSet.has(path.extname(scopePath).toLowerCase()) ? [scopePath] : [];
