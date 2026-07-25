@@ -1,4 +1,15 @@
-import { eof, many, map, regex as parseRegex, seq } from "@claudiu-ceia/combine";
+import {
+  any,
+  anyChar,
+  eof,
+  many,
+  map,
+  mapJoin,
+  minus,
+  regex as parseRegex,
+  seq,
+  str,
+} from "@claudiu-ceia/combine";
 
 type LexemeScanPart =
   | {
@@ -63,37 +74,63 @@ const escapedOperators = MULTI_CHAR_OPERATORS.map((operator) =>
   operator.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"),
 ).join("|");
 
-// Keep scanning in `combine`, but use one ordered parser rather than retrying
-// every token parser and operator at each source position.
-const lexemeScanPartParser = map(
-  parseRegex(
-    new RegExp(
-      [
-        "\\s+",
-        "\\/\\/[^\\n\\r]*",
-        "\\/\\*[\\s\\S]*?\\*\\/",
-        "'(?:\\\\.|[^'\\\\])*'",
-        '"(?:\\\\.|[^"\\\\])*"',
-        "`(?:\\\\.|[^`\\\\])*`",
-        "[A-Za-z_$][A-Za-z0-9_$]*",
-        "(?:\\d[\\d_]*(?:\\.[\\d_]+)?(?:[eE][+-]?[\\d_]+)?|\\.[\\d_]+)",
-        escapedOperators,
-        "[\\s\\S]",
-      ].join("|"),
-    ),
-    "lexeme or trivia",
-  ),
-  (value) =>
-    ({
-      kind:
-        /^\s/u.test(value) || value.startsWith("//") || value.startsWith("/*")
-          ? "trivia"
-          : "lexeme",
-      value,
-    }) satisfies LexemeScanPart,
+const triviaParser = any(
+  parseRegex(/\s+/, "whitespace"),
+  parseRegex(/\/\/[^\n\r]*/, "line comment"),
+  parseRegex(/\/\*[\s\S]*?\*\//, "block comment"),
 );
 
-const lexemeScannerParser = map(seq(many(lexemeScanPartParser), eof()), ([parts]) => parts);
+const escapedCharacterParser = map(seq(str("\\"), anyChar()), ([slash, char]) => `${slash}${char}`);
+
+const singleQuotedStringParser = map(
+  seq(
+    str("'"),
+    mapJoin(many(any(escapedCharacterParser, parseRegex(/[^'\\]/, "string char")))),
+    str("'"),
+  ),
+  ([open, body, close]) => `${open}${body}${close}`,
+);
+
+const doubleQuotedStringParser = map(
+  seq(
+    str('"'),
+    mapJoin(many(any(escapedCharacterParser, parseRegex(/[^"\\]/, "string char")))),
+    str('"'),
+  ),
+  ([open, body, close]) => `${open}${body}${close}`,
+);
+
+// Template literals with nested expressions are intentionally treated as mixed
+// punctuation/identifier tokens. This parser handles plain template literals.
+const plainTemplateLiteralParser = parseRegex(/`(?:\\.|[^`\\])*`/, "template literal");
+
+const identifierParser = parseRegex(/[A-Za-z_$][A-Za-z0-9_$]*/, "identifier");
+const numberParser = parseRegex(/(?:\d[\d_]*(?:\.[\d_]+)?(?:[eE][+-]?[\d_]+)?|\.[\d_]+)/, "number");
+const operatorParser = parseRegex(new RegExp(escapedOperators), "operator");
+const punctuationParser = map(minus(anyChar(), eof()), (char) => char);
+
+const lexemeParser = any(
+  singleQuotedStringParser,
+  doubleQuotedStringParser,
+  plainTemplateLiteralParser,
+  identifierParser,
+  numberParser,
+  operatorParser,
+  punctuationParser,
+);
+
+const lexemeScannerParser = map(
+  seq(
+    many(
+      any(
+        map(triviaParser, (value) => ({ kind: "trivia", value }) satisfies LexemeScanPart),
+        map(lexemeParser, (value) => ({ kind: "lexeme", value }) satisfies LexemeScanPart),
+      ),
+    ),
+    eof(),
+  ),
+  ([parts]) => parts,
+);
 
 const triviaPrefixPattern = /^(?:\s+|\/\/[^\n\r]*|\/\*[\s\S]*?\*\/)/;
 
