@@ -83,3 +83,84 @@ test("writeFileIfUnchangedAtomically cleans up temp file when rename fails", asy
 
   expect(events).toEqual(["write", "rm"]);
 });
+
+test("writeFileIfUnchangedAtomically cleans up a partially written temp file", async () => {
+  const events: string[] = [];
+
+  await expect(
+    writeFileIfUnchangedAtomically({
+      filePath: "/tmp/example.ts",
+      originalText: "before",
+      rewrittenText: "after",
+      encoding: "utf8",
+      operationName: "patch apply",
+      fs: {
+        readFile: async () => "before",
+        stat: async () => ({ mode: 0o644 }),
+        writeFile: async () => {
+          events.push("write");
+          throw new Error("disk full");
+        },
+        rename: async () => {
+          events.push("rename");
+        },
+        rm: async () => {
+          events.push("rm");
+        },
+      },
+    }),
+  ).rejects.toThrow("disk full");
+
+  expect(events).toEqual(["write", "rm"]);
+});
+
+test("writeFileIfUnchangedAtomically detects edits made while preparing the temp file", async () => {
+  let readCount = 0;
+  const events: string[] = [];
+
+  await expect(
+    writeFileIfUnchangedAtomically({
+      filePath: "/tmp/example.ts",
+      originalText: "before",
+      rewrittenText: "after",
+      encoding: "utf8",
+      operationName: "patch apply",
+      fs: {
+        readFile: async () => (++readCount === 1 ? "before" : "external edit"),
+        stat: async () => ({ mode: 0o644 }),
+        writeFile: async () => {
+          events.push("write");
+        },
+        rename: async () => {
+          events.push("rename");
+        },
+        rm: async () => {
+          events.push("rm");
+        },
+      },
+    }),
+  ).rejects.toThrow("File changed during patch apply");
+
+  expect(events).toEqual(["write", "rm"]);
+});
+
+test("writeFileIfUnchangedAtomically preserves unrelated read errors", async () => {
+  const permissionError = Object.assign(new Error("permission denied"), { code: "EACCES" });
+
+  await expect(
+    writeFileIfUnchangedAtomically({
+      filePath: "/tmp/example.ts",
+      originalText: "before",
+      rewrittenText: "after",
+      encoding: "utf8",
+      operationName: "patch apply",
+      fs: {
+        readFile: async () => Promise.reject(permissionError),
+        stat: async () => ({ mode: 0o644 }),
+        writeFile: async () => undefined,
+        rename: async () => undefined,
+        rm: async () => undefined,
+      },
+    }),
+  ).rejects.toBe(permissionError);
+});

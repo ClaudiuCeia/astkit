@@ -39,8 +39,8 @@ export async function writeFileIfUnchangedAtomically(
   let currentText: string;
   try {
     currentText = await fs.readFile(input.filePath, input.encoding);
-  } catch {
-    throw buildStaleApplyError(input.filePath, input.operationName);
+  } catch (error) {
+    throw mapReadError(error, input.filePath, input.operationName);
   }
   if (currentText !== input.originalText) {
     throw buildStaleApplyError(input.filePath, input.operationName);
@@ -49,22 +49,39 @@ export async function writeFileIfUnchangedAtomically(
   let fileStats: { mode: number };
   try {
     fileStats = await fs.stat(input.filePath);
-  } catch {
-    throw buildStaleApplyError(input.filePath, input.operationName);
+  } catch (error) {
+    throw mapReadError(error, input.filePath, input.operationName);
   }
 
   const tempPath = buildAtomicTempPath(input.filePath);
-  await fs.writeFile(tempPath, input.rewrittenText, {
-    encoding: input.encoding,
-    mode: fileStats.mode,
-  });
-
   try {
+    await fs.writeFile(tempPath, input.rewrittenText, {
+      encoding: input.encoding,
+      mode: fileStats.mode,
+    });
+    let latestText: string;
+    try {
+      latestText = await fs.readFile(input.filePath, input.encoding);
+    } catch (error) {
+      throw mapReadError(error, input.filePath, input.operationName);
+    }
+    if (latestText !== input.originalText) {
+      throw buildStaleApplyError(input.filePath, input.operationName);
+    }
     await fs.rename(tempPath, input.filePath);
   } catch (error) {
     await fs.rm(tempPath, { force: true }).catch(() => undefined);
     throw error;
   }
+}
+
+function mapReadError(error: unknown, filePath: string, operationName: string): unknown {
+  const code =
+    typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
+  if (code === "ENOENT" || code === "ENOTDIR") {
+    return buildStaleApplyError(filePath, operationName);
+  }
+  return error;
 }
 
 function buildAtomicTempPath(filePath: string): string {
