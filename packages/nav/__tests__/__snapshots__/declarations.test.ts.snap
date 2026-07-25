@@ -18,8 +18,10 @@ exports[`nav declarations output matches snapshot 1`] = `
  •    * Make a Bar, maybe.
  •    * @deprecated old api
  •    */
-17:   public async makeBar(options: { verbose?: boolean } = {}): Promise<null>
+17:   public async makeBar(options: {
+ •     verbose?: boolean;
+ • } = {}): Promise<null>
 23: }
  •
-25: export const LATE"
+25: export const LATE: 1"
 `;

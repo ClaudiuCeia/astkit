@@ -92,6 +92,54 @@ test("enum has correct kind", () => {
   expect(e!.kind).toBe("enum");
 });
 
+test("preserves declaration forms and supplies inferred types", () => {
+  const result = getDeclarations("declaration-forms.ts");
+  const byName = new Map(result.declarations.map((declaration) => [declaration.name, declaration]));
+
+  expect(byName.get("mutable")?.kind).toBe("let");
+  expect(byName.get("mutable")?.declarationText).toContain("export let mutable: number");
+  expect(byName.get("legacy")?.kind).toBe("var");
+  expect(byName.get("legacy")?.declarationText).toContain("export var legacy: string");
+  expect(byName.get("external")?.declarationText).toContain("export declare function external");
+  expect(byName.get("default")?.declarationText).toContain("export default async function load<");
+
+  const base = byName.get("Base");
+  expect(base?.declarationText).toContain("export abstract class Base<T>");
+  expect(base?.members?.find((member) => member.name === "count")?.signature).toContain(
+    "readonly count: 1",
+  );
+  expect(base?.members?.find((member) => member.name === "parse")?.signature).toBe(
+    "abstract parse(value: T): string",
+  );
+  expect(
+    base?.members?.filter((member) => member.name === "convert").map((member) => member.signature),
+  ).toEqual(["convert(value: string): string", "convert(value: number): number"]);
+  expect(base?.members?.find((member) => member.name === "items")?.signature).toContain("*items");
+  expect(base?.members?.find((member) => member.name === "label")?.signature).toBe(
+    "get label(): string",
+  );
+
+  const mode = byName.get("Mode");
+  expect(mode?.declarationText).toContain("export const enum Mode");
+  expect(mode?.members?.map((member) => member.signature)).toEqual([
+    'Fast = "fast"',
+    'Slow = "slow"',
+  ]);
+});
+
+test("retains every exported overload and omits its implementation", () => {
+  const result = getDeclarations("declaration-forms.ts");
+  const normalize = result.declarations.find((declaration) => declaration.name === "normalize");
+
+  expect(normalize?.declarationText).toContain("normalize(value: string): string");
+  expect(normalize?.overloads).toEqual([
+    expect.objectContaining({
+      declarationText: expect.stringContaining("normalize(value: number): number"),
+    }),
+  ]);
+  expect(formatDeclarationsOutput(result)).not.toContain("normalize(value: string | number)");
+});
+
 test("each declaration has a line number", () => {
   const result = getDeclarations("simple.ts");
 

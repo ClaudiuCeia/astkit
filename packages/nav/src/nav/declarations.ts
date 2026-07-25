@@ -17,6 +17,11 @@ export interface MemberInfo {
   doc?: string;
 }
 
+export interface OverloadInfo {
+  declarationText: string;
+  line: number;
+}
+
 export interface DeclarationInfo {
   name: string;
   kind: string;
@@ -26,6 +31,7 @@ export interface DeclarationInfo {
   doc?: string;
   endLine?: number;
   declarationText?: string;
+  overloads?: OverloadInfo[];
 }
 
 export interface DeclarationsOutput {
@@ -69,6 +75,18 @@ export function formatDeclarationsOutput(
 
     const declLine = formatDeclarationLine(safeDecl, chalkInstance);
     lines.push({ line: decl.line, content: declLine });
+
+    for (const overload of safeDecl.overloads ?? []) {
+      lines.push({
+        line: overload.line,
+        content: highlightExportedDeclaration(
+          overload.declarationText,
+          (value) => (chalkInstance.level > 0 ? chalkInstance.cyan(value) : value),
+          (value) => (chalkInstance.level > 0 ? chalkInstance.yellow(value) : value),
+          (value) => (chalkInstance.level > 0 ? chalkInstance.green(value) : value),
+        ),
+      });
+    }
 
     const isBlock = decl.kind === "class" || decl.kind === "interface" || decl.kind === "enum";
     if (isBlock) {
@@ -237,8 +255,8 @@ function formatMemberLine(
   // lightweight highlighting for names and return types.
   const signature = member.signature;
 
-  // Interface members don't get a forced `public`.
-  if (containerKind === "interface") {
+  // Interface and enum members don't get a forced `public`.
+  if (containerKind === "interface" || containerKind === "enum") {
     return highlightMemberSignature(signature, kw, nm, ty);
   }
 
@@ -264,7 +282,8 @@ function highlightMemberSignature(
   // - `get name(): Type`
   // - `set name(value: T)`
   // - `static name(...): Type`
-  const keywordRx = /\b(static|async|readonly|get|set|public|protected|private)\b/g;
+  const keywordRx =
+    /\b(static|abstract|declare|override|async|readonly|get|set|public|protected|private)\b/g;
   let out = signature.replace(keywordRx, (m) => formatKeyword(m));
 
   // Highlight identifier after `get`/`set`.
@@ -346,6 +365,10 @@ function escapeDeclarationInfo(declaration: DeclarationInfo): DeclarationInfo {
     declarationText: declaration.declarationText
       ? escapeTerminalText(declaration.declarationText)
       : undefined,
+    overloads: declaration.overloads?.map((overload) => ({
+      ...overload,
+      declarationText: escapeTerminalText(overload.declarationText),
+    })),
     members: declaration.members?.map((member) => ({
       ...member,
       name: escapeTerminalText(member.name),
@@ -377,7 +400,7 @@ function highlightExportedDeclaration(
 
   // Highlight `export ... <kind> <Name>` in one pass so ANSI escapes don't break subsequent matches.
   out = out.replace(
-    /\bexport\s+((?:(?:declare|default|async)\s+)*)\b(function|class|interface|enum|type|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
+    /\bexport\s+((?:(?:declare|default|async|abstract)\s+)*)\b(function(?:\s*\*)?|class|interface|const\s+enum|enum|type|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
     (_m, modifiers: string, kind: string, name: string) => {
       const modParts = modifiers
         .trim()
@@ -385,7 +408,11 @@ function highlightExportedDeclaration(
         .filter((p) => p.length > 0)
         .map((p) => `${formatKeyword(p)} `)
         .join("");
-      return `${formatKeyword("export")} ${modParts}${formatKeyword(kind)} ${formatName(name)}`;
+      const highlightedKind = kind
+        .split(/(\s+)/u)
+        .map((part) => (part.trim().length > 0 ? formatKeyword(part) : part))
+        .join("");
+      return `${formatKeyword("export")} ${modParts}${highlightedKind} ${formatName(name)}`;
     },
   );
 
@@ -453,9 +480,64 @@ function getDeclarationKind(declaration: ts.Declaration): string {
   if (ts.isInterfaceDeclaration(declaration)) return "interface";
   if (ts.isTypeAliasDeclaration(declaration)) return "type";
   if (ts.isEnumDeclaration(declaration)) return "enum";
-  if (ts.isVariableDeclaration(declaration)) return "const";
+  if (ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)) {
+    if (declaration.parent.flags & ts.NodeFlags.Const) return "const";
+    if (declaration.parent.flags & ts.NodeFlags.Let) return "let";
+    return "var";
+  }
   if (ts.isModuleDeclaration(declaration)) return "module";
   return "unknown";
+}
+
+const declarationPrinter = ts.createPrinter({
+  newLine: ts.NewLineKind.LineFeed,
+  omitTrailingSemicolon: true,
+  removeComments: true,
+});
+
+function printDeclarationNode(node: ts.Node, sourceFile: ts.SourceFile): string {
+  return declarationPrinter.printNode(ts.EmitHint.Unspecified, node, sourceFile).trim();
+}
+
+function getExportedModifiers(declaration: ts.Node): readonly ts.ModifierLike[] {
+  const modifiers = ts.canHaveModifiers(declaration) ? (ts.getModifiers(declaration) ?? []) : [];
+  if (modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+    return modifiers;
+  }
+  return [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword), ...modifiers];
+}
+
+function inferTypeNode(
+  checker: ts.TypeChecker,
+  declaration: ts.Declaration,
+  explicitType: ts.TypeNode | undefined,
+): ts.TypeNode | undefined {
+  if (explicitType) {
+    return explicitType;
+  }
+  return checker.typeToTypeNode(
+    checker.getTypeAtLocation(declaration),
+    declaration,
+    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
+  );
+}
+
+function inferReturnTypeNode(
+  checker: ts.TypeChecker,
+  declaration: ts.SignatureDeclaration,
+): ts.TypeNode | undefined {
+  if (declaration.type) {
+    return declaration.type;
+  }
+  const signature = checker.getSignatureFromDeclaration(declaration);
+  if (!signature) {
+    return undefined;
+  }
+  return checker.typeToTypeNode(
+    checker.getReturnTypeOfSignature(signature),
+    declaration,
+    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
+  );
 }
 
 function extractLeadingFileDoc(sourceFile: ts.SourceFile): string | undefined {
@@ -499,6 +581,10 @@ function isNonPublicClassMember(member: ts.ClassElement): boolean {
   return Boolean(flags & ts.ModifierFlags.Private) || Boolean(flags & ts.ModifierFlags.Protected);
 }
 
+function printMemberNode(node: ts.Node, sourceFile: ts.SourceFile): string {
+  return printDeclarationNode(node, sourceFile).replace(/;$/u, "");
+}
+
 function buildClassMemberInfo(
   sourceFile: ts.SourceFile,
   checker: ts.TypeChecker,
@@ -527,10 +613,17 @@ function buildClassMemberInfo(
   const modifierPrefix = modifiers.length > 0 ? `${modifiers.join(" ")} ` : "";
 
   if (ts.isConstructorDeclaration(member)) {
-    const params = member.parameters.map((p) => p.getText(sourceFile)).join(", ");
     return {
       name: "constructor",
-      signature: `${modifierPrefix}constructor(${params})`,
+      signature: printMemberNode(
+        ts.factory.updateConstructorDeclaration(
+          member,
+          member.modifiers,
+          member.parameters,
+          undefined,
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
@@ -538,19 +631,22 @@ function buildClassMemberInfo(
 
   if (ts.isMethodDeclaration(member)) {
     const name = member.name.getText(sourceFile);
-    const tparams = member.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
-    const params = member.parameters.map((p) => p.getText(sourceFile)).join(", ");
-    const returnType = member.type
-      ? member.type.getText(sourceFile)
-      : checker.typeToString(
-          checker.getTypeAtLocation(member),
-          member,
-          ts.TypeFormatFlags.NoTruncation,
-        );
-    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
     return {
       name,
-      signature: `${modifierPrefix}${name}${tparamText}(${params}): ${returnType}`,
+      signature: printMemberNode(
+        ts.factory.updateMethodDeclaration(
+          member,
+          member.modifiers,
+          member.asteriskToken,
+          member.name,
+          member.questionToken,
+          member.typeParameters,
+          member.parameters,
+          inferReturnTypeNode(checker, member),
+          undefined,
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
@@ -558,17 +654,19 @@ function buildClassMemberInfo(
 
   if (ts.isPropertyDeclaration(member)) {
     const name = member.name.getText(sourceFile);
-    const optional = member.questionToken ? "?" : "";
-    const typeText = member.type
-      ? member.type.getText(sourceFile)
-      : checker.typeToString(
-          checker.getTypeAtLocation(member),
-          member,
-          ts.TypeFormatFlags.NoTruncation,
-        );
     return {
       name,
-      signature: `${modifierPrefix}${name}${optional}: ${typeText}`,
+      signature: printMemberNode(
+        ts.factory.updatePropertyDeclaration(
+          member,
+          member.modifiers,
+          member.name,
+          member.questionToken ?? member.exclamationToken,
+          inferTypeNode(checker, member, member.type),
+          undefined,
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
@@ -576,16 +674,19 @@ function buildClassMemberInfo(
 
   if (ts.isGetAccessorDeclaration(member)) {
     const name = member.name.getText(sourceFile);
-    const returnType = member.type
-      ? member.type.getText(sourceFile)
-      : checker.typeToString(
-          checker.getTypeAtLocation(member),
-          member,
-          ts.TypeFormatFlags.NoTruncation,
-        );
     return {
       name,
-      signature: `${modifierPrefix}get ${name}(): ${returnType}`,
+      signature: printMemberNode(
+        ts.factory.updateGetAccessorDeclaration(
+          member,
+          member.modifiers,
+          member.name,
+          member.parameters,
+          inferReturnTypeNode(checker, member),
+          undefined,
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
@@ -593,19 +694,30 @@ function buildClassMemberInfo(
 
   if (ts.isSetAccessorDeclaration(member)) {
     const name = member.name.getText(sourceFile);
-    const params = member.parameters.map((p) => p.getText(sourceFile)).join(", ");
     return {
       name,
-      signature: `${modifierPrefix}set ${name}(${params})`,
+      signature: printMemberNode(
+        ts.factory.updateSetAccessorDeclaration(
+          member,
+          member.modifiers,
+          member.name,
+          member.parameters,
+          undefined,
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
   }
 
   // Fallback for rare class elements (index signatures, etc.)
+  if (ts.isClassStaticBlockDeclaration(member) || ts.isSemicolonClassElement(member)) {
+    return null;
+  }
   const fallbackText = member
     .getText(sourceFile)
-    .replace(/\s*\{[\s\S]*$/, "")
+    .replace(/\s*\{[\s\S]*$/u, "")
     .trim();
   return {
     name: "<member>",
@@ -631,96 +743,150 @@ function buildInterfaceMemberInfo(
 
   if (ts.isPropertySignature(member) && member.name) {
     const name = member.name.getText(sourceFile);
-    const optional = member.questionToken ? "?" : "";
-    const typeText = member.type
-      ? member.type.getText(sourceFile)
-      : checker.typeToString(
-          checker.getTypeAtLocation(member),
-          member,
-          ts.TypeFormatFlags.NoTruncation,
-        );
-    return { name, signature: `${name}${optional}: ${typeText}`, line: pos.line, doc };
+    const signature = printMemberNode(
+      ts.factory.updatePropertySignature(
+        member,
+        member.modifiers,
+        member.name,
+        member.questionToken,
+        inferTypeNode(checker, member, member.type),
+      ),
+      sourceFile,
+    );
+    return { name, signature, line: pos.line, doc };
   }
 
   if (ts.isMethodSignature(member) && member.name) {
     const name = member.name.getText(sourceFile);
-    const tparams = member.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
-    const params = member.parameters.map((p) => p.getText(sourceFile)).join(", ");
-    const returnType = member.type
-      ? member.type.getText(sourceFile)
-      : checker.typeToString(
-          checker.getTypeAtLocation(member),
-          member,
-          ts.TypeFormatFlags.NoTruncation,
-        );
-    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
     return {
       name,
-      signature: `${name}${tparamText}(${params}): ${returnType}`,
+      signature: printMemberNode(
+        ts.factory.updateMethodSignature(
+          member,
+          member.modifiers,
+          member.name,
+          member.questionToken,
+          member.typeParameters,
+          member.parameters,
+          inferReturnTypeNode(checker, member),
+        ),
+        sourceFile,
+      ),
       line: pos.line,
       doc,
     };
   }
 
   // Fallback for call signatures, index signatures, etc.
-  const fallbackText = member.getText(sourceFile).trim().replace(/;$/, "");
+  const fallbackText = printMemberNode(member, sourceFile);
   return { name: "<member>", signature: fallbackText, line: pos.line, doc };
+}
+
+function buildEnumMemberInfo(sourceFile: ts.SourceFile, member: ts.EnumMember): MemberInfo {
+  const pos = fromPosition(sourceFile, member.getStart(sourceFile));
+  return {
+    name: member.name.getText(sourceFile),
+    signature: printMemberNode(member, sourceFile).replace(/,$/u, ""),
+    line: pos.line,
+  };
 }
 
 function buildDeclarationText(
   sourceFile: ts.SourceFile,
+  checker: ts.TypeChecker,
   declaration: ts.Declaration,
 ): string | null {
-  if (ts.isFunctionDeclaration(declaration) && declaration.name) {
-    const name = declaration.name.getText(sourceFile);
-    const tparams = declaration.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
-    const params = declaration.parameters.map((p) => p.getText(sourceFile)).join(", ");
-    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
-    const returnType = declaration.type ? declaration.type.getText(sourceFile) : "";
-    const returnText = returnType.length > 0 ? `: ${returnType}` : "";
-    return `export function ${name}${tparamText}(${params})${returnText}`;
+  if (ts.isFunctionDeclaration(declaration)) {
+    return printDeclarationNode(
+      ts.factory.updateFunctionDeclaration(
+        declaration,
+        getExportedModifiers(declaration),
+        declaration.asteriskToken,
+        declaration.name,
+        declaration.typeParameters,
+        declaration.parameters,
+        inferReturnTypeNode(checker, declaration),
+        undefined,
+      ),
+      sourceFile,
+    );
   }
 
-  if (ts.isClassDeclaration(declaration) && declaration.name) {
-    const name = declaration.name.getText(sourceFile);
-    const heritage = declaration.heritageClauses?.map((h) => h.getText(sourceFile)).join(" ") ?? "";
-    const suffix = heritage.length > 0 ? ` ${heritage}` : "";
-    return `export class ${name}${suffix} {`;
+  if (ts.isClassDeclaration(declaration)) {
+    return printDeclarationNode(
+      ts.factory.updateClassDeclaration(
+        declaration,
+        getExportedModifiers(declaration),
+        declaration.name,
+        declaration.typeParameters,
+        declaration.heritageClauses,
+        [],
+      ),
+      sourceFile,
+    ).replace(/\s*\}\s*$/u, "");
   }
 
   if (ts.isInterfaceDeclaration(declaration)) {
-    const name = declaration.name.getText(sourceFile);
-    const heritage = declaration.heritageClauses?.map((h) => h.getText(sourceFile)).join(" ") ?? "";
-    const suffix = heritage.length > 0 ? ` ${heritage}` : "";
-    return `export interface ${name}${suffix} {`;
+    return printDeclarationNode(
+      ts.factory.updateInterfaceDeclaration(
+        declaration,
+        getExportedModifiers(declaration),
+        declaration.name,
+        declaration.typeParameters,
+        declaration.heritageClauses,
+        [],
+      ),
+      sourceFile,
+    ).replace(/\s*\}\s*$/u, "");
   }
 
   if (ts.isEnumDeclaration(declaration)) {
-    const name = declaration.name.getText(sourceFile);
-    return `export enum ${name} {`;
+    return printDeclarationNode(
+      ts.factory.updateEnumDeclaration(
+        declaration,
+        getExportedModifiers(declaration),
+        declaration.name,
+        [],
+      ),
+      sourceFile,
+    ).replace(/\s*\}\s*$/u, "");
   }
 
   if (ts.isTypeAliasDeclaration(declaration)) {
-    const name = declaration.name.getText(sourceFile);
-    const tparams = declaration.typeParameters?.map((p) => p.getText(sourceFile)).join(", ");
-    const tparamText = tparams && tparams.length > 0 ? `<${tparams}>` : "";
-    const rhs = collapseWhitespace(declaration.type.getText(sourceFile));
-    return `export type ${name}${tparamText} = ${rhs}`;
+    return printDeclarationNode(
+      ts.factory.updateTypeAliasDeclaration(
+        declaration,
+        getExportedModifiers(declaration),
+        declaration.name,
+        declaration.typeParameters,
+        declaration.type,
+      ),
+      sourceFile,
+    );
   }
 
   if (ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)) {
-    const name = declaration.name.getText(sourceFile);
-    const typeText = declaration.type ? declaration.type.getText(sourceFile) : "";
-    const typed = typeText.length > 0 ? `: ${typeText}` : "";
-    // We only get here for exported variables (via symbol exports).
-    return collapseWhitespace(`export const ${name}${typed}`);
+    const updatedDeclaration = ts.factory.updateVariableDeclaration(
+      declaration,
+      declaration.name,
+      declaration.exclamationToken,
+      inferTypeNode(checker, declaration, declaration.type),
+      undefined,
+    );
+    const updatedList = ts.factory.updateVariableDeclarationList(declaration.parent, [
+      updatedDeclaration,
+    ]);
+    const statement = declaration.parent.parent;
+    if (!ts.isVariableStatement(statement)) {
+      return null;
+    }
+    return printDeclarationNode(
+      ts.factory.updateVariableStatement(statement, getExportedModifiers(statement), updatedList),
+      sourceFile,
+    );
   }
 
   return null;
-}
-
-function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
 }
 
 function findExportSiteDeclaration(
@@ -800,13 +966,19 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     const decls = semanticSymbol.getDeclarations();
     if (!decls || decls.length === 0) continue;
 
-    const declaration = decls[0]!;
+    const localFunctionOverloads = decls.filter(
+      (candidate): candidate is ts.FunctionDeclaration =>
+        candidate.getSourceFile().fileName === resolved &&
+        ts.isFunctionDeclaration(candidate) &&
+        !typeChecker.isImplementationOfOverload(candidate),
+    );
+    const declaration = localFunctionOverloads[0] ?? decls[0]!;
     const declarationSourceFile = declaration.getSourceFile();
     const isLocalDeclaration = declarationSourceFile.fileName === resolved;
 
     const kind = getDeclarationKind(declaration);
     const declarationText = isLocalDeclaration
-      ? buildDeclarationText(declarationSourceFile, declaration)
+      ? buildDeclarationText(declarationSourceFile, typeChecker, declaration)
       : null;
     const type = (() => {
       // Prefer expanding type aliases to their RHS, so output resembles `deno doc`.
@@ -834,10 +1006,31 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       declarationText: declarationText ?? undefined,
     };
 
+    if (localFunctionOverloads.length > 1) {
+      info.overloads = localFunctionOverloads.slice(1).flatMap((overload) => {
+        const text = buildDeclarationText(sourceFile, typeChecker, overload);
+        if (!text) {
+          return [];
+        }
+        return [
+          {
+            declarationText: text,
+            line: fromPosition(sourceFile, overload.getStart(sourceFile)).line,
+          },
+        ];
+      });
+    }
+
     // For classes and interfaces, enumerate members in source order.
     if (isLocalDeclaration && kind === "class" && ts.isClassDeclaration(declaration)) {
       const members: MemberInfo[] = [];
       for (const member of declaration.members) {
+        if (
+          (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) &&
+          typeChecker.isImplementationOfOverload(member)
+        ) {
+          continue;
+        }
         const infoMember = buildClassMemberInfo(declarationSourceFile, typeChecker, member);
         if (infoMember) {
           members.push(infoMember);
@@ -847,6 +1040,12 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       if (members.length > 0) {
         info.members = members;
       }
+    }
+
+    if (isLocalDeclaration && kind === "enum" && ts.isEnumDeclaration(declaration)) {
+      info.members = declaration.members.map((member) =>
+        buildEnumMemberInfo(declarationSourceFile, member),
+      );
     }
 
     if (isLocalDeclaration && kind === "interface" && ts.isInterfaceDeclaration(declaration)) {
