@@ -71,5 +71,9 @@ function normalizeMaxVariants(maxVariants: number | undefined): number {
     return DEFAULT_MAX_ISOMORPHISM_VARIANTS;
   }
 
-  return Math.max(1, Math.floor(maxVariants));
+  if (!Number.isSafeInteger(maxVariants) || maxVariants < 1) {
+    throw new RangeError("maxVariants must be a positive safe integer");
+  }
+
+  return maxVariants;
 }

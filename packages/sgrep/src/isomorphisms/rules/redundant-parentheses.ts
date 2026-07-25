@@ -8,21 +8,7 @@ export const redundantParenthesesRule: IsomorphismRule = {
     const variants = new Set<string>();
 
     visitNode(context.ast, (node) => {
-      if (ts.isParenthesizedExpression(node)) {
-        const start = node.getStart(context.ast);
-        const end = node.end;
-        const innerStart = node.expression.getStart(context.ast);
-        const innerEnd = node.expression.end;
-        const innerText = context.source.slice(innerStart, innerEnd);
-        if (innerText.length > 0) {
-          const variant = context.source.slice(0, start) + innerText + context.source.slice(end);
-          if (variant !== context.source) {
-            variants.add(variant);
-          }
-        }
-      }
-
-      if (ts.isBinaryExpression(node)) {
+      if (ts.isBinaryExpression(node) && !ts.isParenthesizedExpression(node.parent)) {
         const start = node.getStart(context.ast);
         const end = node.end;
         const expressionText = context.source.slice(start, end);

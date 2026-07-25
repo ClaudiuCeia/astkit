@@ -103,11 +103,12 @@ This prevents partial malformed captures.
 
 `sgrep` expands patterns through a small isomorphism engine before matching.
 
-Default rules:
+The default rule only adds redundant parentheses around binary expressions. It does not remove
+parentheses or reorder expressions, because those transformations are not generally sound in
+JavaScript.
 
-- `commutative-binary`: swaps operands for commutative operators (`+`, `*`, `&`, `|`, `^`, `==`, `===`, `!=`, `!==`)
-- `object-literal-property-order`: swaps adjacent object-literal `key: value` entries when safe
-- `redundant-parentheses`: adds and removes extra parentheses around binary expressions
+The programmatic `UNSAFE_ISOMORPHISM_RULES` export retains operand and object-property reordering for
+specialized callers that can guarantee purity and compatible operand types.
 
 Disable all isomorphisms with:
 

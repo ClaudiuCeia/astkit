@@ -320,7 +320,7 @@ test("searchProject supports ellipsis wildcard", async () => {
   }
 });
 
-test("searchProject applies commutative binary isomorphism", async () => {
+test("searchProject does not reorder binary operands by default", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
 
   try {
@@ -331,10 +331,7 @@ test("searchProject applies commutative binary isomorphism", async () => {
       scope: ".",
     });
 
-    expect(result.totalMatches).toBe(1);
-    expect(result.files[0]?.matches[0]?.captures).toEqual({
-      x: "value",
-    });
+    expect(result.totalMatches).toBe(0);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -400,7 +397,7 @@ test("searchProject matches parenthesized variants through isomorphism expansion
   }
 });
 
-test("searchProject matches reordered object literal key/value entries", async () => {
+test("searchProject does not reorder object properties by default", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "sgrep-"));
 
   try {
@@ -415,11 +412,7 @@ test("searchProject matches reordered object literal key/value entries", async (
       scope: ".",
     });
 
-    expect(result.totalMatches).toBe(1);
-    expect(result.files[0]?.matches[0]?.captures).toEqual({
-      x: "first",
-      y: "second",
-    });
+    expect(result.totalMatches).toBe(0);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }

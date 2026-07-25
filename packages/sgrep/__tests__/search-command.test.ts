@@ -135,7 +135,7 @@ test("runSearchCommand can disable isomorphism expansion", async () => {
   }
 });
 
-test("runSearchCommand matches object literal key-order isomorphism", async () => {
+test("runSearchCommand preserves object property order by default", async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), "search-command-"));
 
   try {
@@ -149,11 +149,7 @@ test("runSearchCommand matches object literal key-order isomorphism", async () =
       cwd: workspace,
     });
 
-    expect(result.totalMatches).toBe(1);
-    expect(result.files[0]?.matches[0]?.captures).toEqual({
-      x: "first",
-      y: "second",
-    });
+    expect(result.totalMatches).toBe(0);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
