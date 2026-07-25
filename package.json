@@ -26,7 +26,7 @@
     "knip": "knip",
     "knip:deps": "knip --dependencies --files",
     "changeset": "changeset",
-    "version-packages": "changeset version && bun install --lockfile-only",
+    "version-packages": "changeset version && node scripts/refresh-lockfile.mjs",
     "release": "changeset publish",
     "pack:check": "npm pack --workspaces --dry-run",
     "skill:install": "bunx skills@1.5.20 add ./packages/astkit/skills/astkit-tooling -a codex -y"
