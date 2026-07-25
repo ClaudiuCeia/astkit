@@ -2,6 +2,10 @@ import { bench, group, summary } from "mitata";
 import { searchProject } from "@claudiu-ceia/sgrep";
 import { patchProject } from "@claudiu-ceia/spatch";
 import { findTemplateMatches } from "../packages/astkit-core/src/pattern/match.ts";
+import {
+  compileReplacementTemplate,
+  renderCompiledTemplate,
+} from "../packages/astkit-core/src/pattern/render.ts";
 import { compileTemplate } from "../packages/astkit-core/src/pattern/syntax.ts";
 import { createTsFixture } from "./suites/fixtures.ts";
 
@@ -13,6 +17,18 @@ export function defineBenches(): void {
 
       bench("core matcher: repeated late-literal miss", () => {
         findTemplateMatches(source, pattern);
+      });
+    });
+
+    group("layout rendering", () => {
+      const replacement = compileReplacementTemplate(
+        "const :[name] = build(:[left], :[right], { enabled: true });",
+      );
+      const captures = { name: "result", left: "first", right: "second" };
+      const source = "const /* keep */ result=build( first,second,{enabled:true});";
+
+      bench("layout rendering: preserve trivia", () => {
+        renderCompiledTemplate(replacement, captures, { preserveLayoutFrom: source });
       });
     });
 
