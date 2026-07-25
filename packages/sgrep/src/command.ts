@@ -29,7 +29,7 @@ export async function runSearchCommand(
   });
 }
 
-type FormatSearchOutputOptions = {
+export type FormatSearchOutputOptions = {
   color?: boolean;
   chalkInstance?: ChalkInstance;
 };

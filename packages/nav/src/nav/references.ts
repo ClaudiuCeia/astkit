@@ -11,7 +11,7 @@ import {
   relativePath,
 } from "../service.ts";
 
-interface ReferenceLocation {
+export interface ReferenceLocation {
   file: string;
   line: number;
   character: number;
@@ -19,7 +19,7 @@ interface ReferenceLocation {
   isWriteAccess: boolean;
 }
 
-interface ReferencesOutput {
+export interface ReferencesOutput {
   symbol: string;
   definition: { file: string; line: number; character: number } | null;
   references: ReferenceLocation[];

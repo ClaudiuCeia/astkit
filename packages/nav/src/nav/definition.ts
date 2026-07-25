@@ -11,7 +11,7 @@ import {
   relativePath,
 } from "../service.ts";
 
-interface DefinitionLocation {
+export interface DefinitionLocation {
   file: string;
   line: number;
   character: number;
@@ -19,7 +19,7 @@ interface DefinitionLocation {
   containerName: string;
 }
 
-interface DefinitionOutput {
+export interface DefinitionOutput {
   symbol: string;
   definitions: DefinitionLocation[];
 }

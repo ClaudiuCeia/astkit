@@ -8,7 +8,7 @@ type WorkspaceBoundary = {
   canonicalBoundary: string;
 };
 
-interface Service {
+export interface Service {
   service: ts.LanguageService;
   program: ts.Program;
   projectRoot: string;

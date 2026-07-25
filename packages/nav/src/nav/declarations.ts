@@ -10,14 +10,14 @@ import {
   relativePath,
 } from "../service.ts";
 
-interface MemberInfo {
+export interface MemberInfo {
   name: string;
   signature: string;
   line: number;
   doc?: string;
 }
 
-interface DeclarationInfo {
+export interface DeclarationInfo {
   name: string;
   kind: string;
   signature: string;
@@ -28,13 +28,13 @@ interface DeclarationInfo {
   declarationText?: string;
 }
 
-interface DeclarationsOutput {
+export interface DeclarationsOutput {
   file: string;
   declarations: DeclarationInfo[];
   doc?: string;
 }
 
-type FormatDeclarationsOutputOptions = {
+export type FormatDeclarationsOutputOptions = {
   color?: boolean;
   chalkInstance?: ChalkInstance;
 };
