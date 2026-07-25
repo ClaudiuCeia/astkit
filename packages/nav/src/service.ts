@@ -55,10 +55,12 @@ export function createService(
 
   // Ensure requested target files are in the language-service file set.
   const targetFiles = normalizeTargetFiles(targetFile);
+  const fileNameSet = new Set(fileNames);
   for (const requestedFile of targetFiles) {
     const resolved = path.resolve(cwd, requestedFile);
     assertPathWithinWorkspaceBoundary(boundary, resolved, "File path");
-    if (!fileNames.includes(resolved)) {
+    if (!fileNameSet.has(resolved)) {
+      fileNameSet.add(resolved);
       fileNames.push(resolved);
     }
   }
@@ -184,6 +186,30 @@ export function isPathWithinWorkspaceBoundary(
     typeof boundaryOrCwd === "string" ? createWorkspaceBoundary(boundaryOrCwd) : boundaryOrCwd;
   const canonicalTarget = resolveCanonicalPath(path.resolve(targetPath));
   return isPathWithinBase(boundary.canonicalBoundary, canonicalTarget);
+}
+
+/**
+ * Returns a boundary-membership checker that caches canonical-path resolution
+ * so each distinct raw path is resolved at most once per checker instance.
+ * Intended to be created once per operation (e.g. a single `rankCode` run)
+ * and discarded afterwards; do not share across operations.
+ */
+export function createCachedBoundaryChecker(
+  boundaryOrCwd: WorkspaceBoundary | string,
+): (filePath: string) => boolean {
+  const boundary =
+    typeof boundaryOrCwd === "string" ? createWorkspaceBoundary(boundaryOrCwd) : boundaryOrCwd;
+  const cache = new Map<string, boolean>();
+  return function isWithinBoundary(filePath: string): boolean {
+    const resolved = path.resolve(filePath);
+    const cached = cache.get(resolved);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const result = isPathWithinBase(boundary.canonicalBoundary, resolveCanonicalPath(resolved));
+    cache.set(resolved, result);
+    return result;
+  };
 }
 
 function findNearestGitRepoRoot(startDirectory: string): string | null {
