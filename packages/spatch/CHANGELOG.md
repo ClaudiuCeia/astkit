@@ -1,5 +1,20 @@
 # @claudiu-ceia/spatch
 
+## 0.4.0
+
+### Minor Changes
+
+- 278edf1: Require Node.js 22.12 or newer and update runtime dependencies to their current supported releases.
+- 0369d33: Harden structural matching, replacement validation, navigation inputs, barrel declarations, and atomic patch writes.
+
+  Make default isomorphisms semantics-preserving, export public API result types, and prune impossible matcher branches for substantially better adversarial performance.
+
+### Patch Changes
+
+- Updated dependencies [278edf1]
+- Updated dependencies [0369d33]
+  - @claudiu-ceia/astkit-core@0.3.0
+
 ## 0.3.1
 
 ### Patch Changes
