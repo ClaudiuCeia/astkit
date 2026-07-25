@@ -1,9 +1,10 @@
 import { bench, group, summary } from "mitata";
 import { searchProject } from "@claudiu-ceia/sgrep";
 import { patchProject } from "@claudiu-ceia/spatch";
+import { rankCode } from "../packages/nav/src/code-rank/rank.ts";
 import { findTemplateMatches } from "../packages/astkit-core/src/pattern/match.ts";
 import { compileTemplate } from "../packages/astkit-core/src/pattern/syntax.ts";
-import { createTsFixture } from "./suites/fixtures.ts";
+import { createCodeRankFixture, createTsFixture } from "./suites/fixtures.ts";
 
 export function defineBenches(): void {
   summary(() => {
@@ -13,6 +14,19 @@ export function defineBenches(): void {
 
       bench("core matcher: repeated late-literal miss", () => {
         findTemplateMatches(source, pattern);
+      });
+    });
+
+    group("nav/code-rank", () => {
+      bench("code-rank: 50 files, 4 exports each", async function* () {
+        const fixture = await createCodeRankFixture({ fileCount: 50, exportsPerFile: 4 });
+        try {
+          yield async () => {
+            await rankCode({ cwd: fixture.root, scope: "." });
+          };
+        } finally {
+          await fixture.dispose();
+        }
       });
     });
 

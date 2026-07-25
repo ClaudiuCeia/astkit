@@ -1,8 +1,15 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createService, toPosition, fromPosition, relativePath } from "../src/service.ts";
+import {
+  createCachedBoundaryChecker,
+  createService,
+  createWorkspaceBoundary,
+  fromPosition,
+  relativePath,
+  toPosition,
+} from "../src/service.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
 let originalCwd: string;
@@ -147,5 +154,54 @@ test("createService reports semantic tsconfig diagnostics", async () => {
     );
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("createCachedBoundaryChecker returns true for paths within the boundary", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "nav-checker-"));
+  try {
+    const checker = createCachedBoundaryChecker(createWorkspaceBoundary(root));
+    const inside = path.join(root, "src", "index.ts");
+    expect(checker(inside)).toBe(true);
+    // Second call to the same path exercises the cache branch.
+    expect(checker(inside)).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("createCachedBoundaryChecker returns false for paths outside the boundary", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "nav-checker-"));
+  try {
+    const workspace = path.join(root, "workspace");
+    await mkdir(workspace, { recursive: true });
+    const checker = createCachedBoundaryChecker(createWorkspaceBoundary(workspace));
+    const outside = path.join(root, "sibling", "index.ts");
+    expect(checker(outside)).toBe(false);
+    expect(checker(outside)).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("createCachedBoundaryChecker treats a symlink pointing outside the boundary as outside", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "nav-checker-symlink-"));
+  try {
+    const workspace = path.join(root, "workspace");
+    await mkdir(workspace, { recursive: true });
+    await mkdir(path.join(workspace, ".git"));
+
+    const outsideFile = path.join(root, "outside.ts");
+    await writeFile(outsideFile, "export const x = 1;\n", "utf8");
+
+    const escapeLink = path.join(workspace, "escape.ts");
+    await symlink(outsideFile, escapeLink);
+
+    const checker = createCachedBoundaryChecker(createWorkspaceBoundary(workspace));
+    expect(checker(escapeLink)).toBe(false);
+    // Second call must agree with the first (cache must not alter the result).
+    expect(checker(escapeLink)).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

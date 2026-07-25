@@ -7,10 +7,10 @@ import {
 } from "@claudiu-ceia/astkit-core";
 import {
   assertPathWithinWorkspaceBoundary,
+  createCachedBoundaryChecker,
   createService,
   createWorkspaceBoundary,
   fromPosition,
-  isPathWithinWorkspaceBoundary,
   relativePath,
 } from "../service.ts";
 
@@ -74,6 +74,7 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
   const checker = program.getTypeChecker();
   const symbols: RankedSymbol[] = [];
   const seenDeclarations = new Set<string>();
+  const isWithinBoundary = createCachedBoundaryChecker(boundary);
 
   for (const filePath of files) {
     const sourceFile = program.getSourceFile(filePath);
@@ -107,7 +108,7 @@ export async function rankCode(options: CodeRankOptions = {}): Promise<CodeRankR
         service.findReferences(declarationSourceFile.fileName, declarationStart),
         declarationSourceFile.fileName,
         projectRoot,
-        boundary,
+        isWithinBoundary,
       );
       const pos = fromPosition(declarationSourceFile, declarationStart);
       symbols.push({
@@ -152,7 +153,7 @@ function collectReferenceStats(
   references: readonly ts.ReferencedSymbol[] | undefined,
   declarationFile: string,
   projectRoot: string,
-  boundary: ReturnType<typeof createWorkspaceBoundary>,
+  isWithinBoundary: (filePath: string) => boolean,
 ): ReferenceStats {
   if (!references || references.length === 0) {
     return {
@@ -177,7 +178,7 @@ function collectReferenceStats(
         continue;
       }
       seenReferences.add(key);
-      if (!isPathWithinWorkspaceBoundary(boundary, reference.fileName)) {
+      if (!isWithinBoundary(reference.fileName)) {
         continue;
       }
 

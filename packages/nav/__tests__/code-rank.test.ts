@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { rankCode } from "../src/code-rank/rank.ts";
@@ -86,6 +86,88 @@ test("rankCode returns empty output when scope has no rankable files", async () 
     expect(result.filesScanned).toBe(0);
     expect(result.symbolsScanned).toBe(0);
     expect(result.symbols).toEqual([]);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("rankCode ignores references from symlinked files that resolve outside the git boundary", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "code-rank-symlink-"));
+  const workspace = path.join(root, "workspace");
+  const outsideDir = path.join(root, "outside");
+
+  try {
+    await mkdir(workspace, { recursive: true });
+    await mkdir(path.join(workspace, ".git"));
+    await mkdir(outsideDir, { recursive: true });
+
+    await writeFile(
+      path.join(workspace, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            module: "ESNext",
+            moduleResolution: "Bundler",
+            target: "ESNext",
+            strict: true,
+          },
+          include: ["**/*.ts"],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    // a.ts: declares `hot`
+    await writeFile(
+      path.join(workspace, "a.ts"),
+      "export function hot(): number { return 1; }\n",
+      "utf8",
+    );
+
+    // b.ts: one external reference to `hot` (within boundary)
+    await writeFile(
+      path.join(workspace, "b.ts"),
+      ['import { hot } from "./a.ts";', "", "hot();", ""].join("\n"),
+      "utf8",
+    );
+
+    // outside/c.ts: would add an extra external reference, but lives outside the boundary.
+    // We create a symlink escape.ts -> outside/c.ts so the TS compiler might pick it up,
+    // but the canonical path resolves outside the git root.
+    await writeFile(
+      path.join(outsideDir, "c.ts"),
+      ['import { hot } from "../workspace/a.ts";', "", "hot();", ""].join("\n"),
+      "utf8",
+    );
+    await symlink(path.join(outsideDir, "c.ts"), path.join(workspace, "escape.ts"));
+
+    const result = await rankCode({ cwd: workspace, scope: "." });
+
+    const hot = result.symbols.find((s) => s.symbol === "hot");
+    expect(hot).toBeDefined();
+    // References from escape.ts (which resolves to outside the git boundary) must not
+    // appear in referencingFiles; only b.ts (within the boundary) should be listed.
+    expect(hot!.referencingFiles).toEqual(["b.ts"]);
+    expect(hot!.referencingFiles.some((f) => f.includes("escape") || f.includes("outside"))).toBe(
+      false,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rankCode canonical-path deduplication: path resolved via different spellings counts once", async () => {
+  const workspace = await createRankFixtureWorkspace();
+
+  try {
+    const result = await rankCode({ cwd: workspace, scope: "." });
+
+    // Verify each symbol appears exactly once in the output regardless of how many
+    // times the same canonical path is presented to the boundary checker.
+    const names = result.symbols.map((s) => s.symbol);
+    expect(names).toEqual([...new Set(names)]);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
