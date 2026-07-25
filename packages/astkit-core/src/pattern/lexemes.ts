@@ -3,7 +3,6 @@ import {
   anyChar,
   eof,
   many,
-  many1,
   map,
   mapJoin,
   minus,

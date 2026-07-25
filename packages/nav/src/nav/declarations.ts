@@ -187,7 +187,7 @@ function formatDeclarationLine(decl: DeclarationInfo, chalkInstance: ChalkInstan
 
   switch (decl.kind) {
     case "function": {
-      return `${kw("export")} ${kw("function")} ${nm(decl.name)}${formatCallableSignature(decl.signature, kw, nm, ty)}`;
+      return `${kw("export")} ${kw("function")} ${nm(decl.name)}${formatCallableSignature(decl.signature, ty)}`;
     }
     case "const":
       return `${kw("export")} ${kw("const")} ${nm(decl.name)}: ${ty(decl.signature)}`;
@@ -208,8 +208,6 @@ function formatDeclarationLine(decl: DeclarationInfo, chalkInstance: ChalkInstan
 
 function formatCallableSignature(
   rawSignature: string,
-  formatKeyword: (kw: string) => string,
-  formatName: (name: string) => string,
   formatType: (type: string) => string,
 ): string {
   // `typeToString` for functions/methods is typically `(args) => ret`.
