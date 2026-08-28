@@ -1,6 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
 import { Chalk } from "chalk";
+import ts from "typescript";
 import { formatDeclarationsOutput, getDeclarations } from "../src/nav/declarations.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");
@@ -125,6 +126,25 @@ test("preserves declaration forms and supplies inferred types", () => {
     'Fast = "fast"',
     'Slow = "slow"',
   ]);
+  expect(mode?.members?.map((member) => member.doc)).toEqual([
+    "Prefer this mode for latency-sensitive work.",
+    "Prefer this mode for thorough work.",
+  ]);
+});
+
+test("prints declaration-safe inferred variable types", () => {
+  const result = getDeclarations("declaration-inference.ts");
+  const output = formatDeclarationsOutput(result);
+
+  expect(output).toMatchSnapshot();
+  expect(output).toContain("export const token: unique symbol");
+  expect(output).not.toContain("typeof token");
+  expect(output).not.toContain("typeof Anonymous");
+  expect(output).not.toContain("typeof InternalName");
+  expect(output).not.toContain("nonNameable: Local");
+  expect(output).toContain("export const nominal: unknown");
+  expect(output).not.toContain("nominal: Nominal");
+  expect(output).toContain("export const publicNominal: PublicNominal");
 });
 
 test("retains every exported overload and omits its implementation", () => {
@@ -138,6 +158,56 @@ test("retains every exported overload and omits its implementation", () => {
     }),
   ]);
   expect(formatDeclarationsOutput(result)).not.toContain("normalize(value: string | number)");
+});
+
+test("normalizes ambient function modifiers for default and named aliases", () => {
+  const result = getDeclarations("ambient-aliases.ts");
+  const defaultParse = result.declarations.find((declaration) => declaration.name === "default");
+  const ambientParse = result.declarations.find(
+    (declaration) => declaration.name === "ambientParse",
+  );
+
+  expect(defaultParse?.declarationText).toBe(
+    "export default function parse(value: string): string",
+  );
+  expect(defaultParse?.overloads).toEqual([
+    {
+      declarationText: "export default function parse(value: number): number",
+      line: 5,
+    },
+  ]);
+  expect(ambientParse?.declarationText).toBe(
+    "export declare function ambientParse(value: boolean): boolean",
+  );
+
+  const printedDeclarations = result.declarations.flatMap((declaration) => [
+    ...(declaration.declarationText ? [declaration.declarationText] : []),
+    ...(declaration.overloads?.map((overload) => overload.declarationText) ?? []),
+  ]);
+  const fileName = path.join(fixturesDir, "printed-ambient-aliases.d.ts");
+  const compilerOptions: ts.CompilerOptions = {
+    module: ts.ModuleKind.ESNext,
+    noEmit: true,
+    strict: true,
+  };
+  const host = ts.createCompilerHost(compilerOptions);
+  const getSourceFile = host.getSourceFile.bind(host);
+  host.fileExists = (candidate) => candidate === fileName || ts.sys.fileExists(candidate);
+  host.readFile = (candidate) =>
+    candidate === fileName ? printedDeclarations.join("\n") : ts.sys.readFile(candidate);
+  host.getSourceFile = (candidate, languageVersion, onError, shouldCreateNewSourceFile) =>
+    candidate === fileName
+      ? ts.createSourceFile(
+          candidate,
+          printedDeclarations.join("\n"),
+          languageVersion,
+          true,
+          ts.ScriptKind.TS,
+        )
+      : getSourceFile(candidate, languageVersion, onError, shouldCreateNewSourceFile);
+  const program = ts.createProgram([fileName], compilerOptions, host);
+
+  expect(program.getSyntacticDiagnostics()).toEqual([]);
 });
 
 test("each declaration has a line number", () => {
@@ -162,6 +232,8 @@ test("lists named, aliased, type-only, and star re-exports from barrels", () => 
   expect(result.declarations.map((declaration) => declaration.name)).toEqual([
     "makeUser",
     "User",
+    "parseValue",
+    "default",
     "getUserRole",
   ]);
   expect(result.declarations.find((declaration) => declaration.name === "makeUser")?.kind).toBe(
@@ -173,6 +245,39 @@ test("lists named, aliased, type-only, and star re-exports from barrels", () => 
   expect(result.declarations.find((declaration) => declaration.name === "getUserRole")?.kind).toBe(
     "function",
   );
+  const parseValue = result.declarations.find((declaration) => declaration.name === "parseValue");
+  expect(parseValue?.declarationText).toContain("function parseValue(value: string): string");
+  expect(parseValue?.declarationText).not.toContain("default");
+  expect(parseValue?.doc).toBe("Parse a default value.");
+  expect(parseValue?.overloads).toEqual([
+    {
+      declarationText: expect.stringContaining("function parseValue(value: number): number"),
+      line: 3,
+    },
+  ]);
+  expect(parseValue?.line).toBe(3);
+  expect(
+    parseValue?.overloads?.every((overload) => !overload.declarationText.includes("default")),
+  ).toBe(true);
+
+  const defaultParse = result.declarations.find((declaration) => declaration.name === "default");
+  expect(defaultParse?.declarationText).toContain(
+    "export default function parse(value: string): string",
+  );
+  expect(defaultParse?.doc).toBe("Parse a named value.");
+  expect(defaultParse?.overloads).toEqual([
+    {
+      declarationText: expect.stringContaining(
+        "export default function parse(value: number): number",
+      ),
+      line: 4,
+    },
+  ]);
+  expect(defaultParse?.line).toBe(4);
+  const output = formatDeclarationsOutput(result);
+  expect(output).toContain("Parse a default value.");
+  expect(output).toContain("Parse a named value.");
+  expect(output).not.toContain("value: string | number");
   expect(result.declarations.every((declaration) => declaration.line > 0)).toBe(true);
 });
 

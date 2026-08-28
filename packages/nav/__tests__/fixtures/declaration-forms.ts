@@ -28,7 +28,9 @@ export abstract class Base<T> {
 }
 
 export const enum Mode {
+  /** Prefer this mode for latency-sensitive work. */
   Fast = "fast",
+  /** Prefer this mode for thorough work. */
   Slow = "slow",
 }
 

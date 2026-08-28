@@ -14,6 +14,7 @@ export type {
   DeclarationsOutput,
   FormatDeclarationsOutputOptions,
   MemberInfo,
+  OverloadInfo,
 } from "./nav/declarations.ts";
 export { definitionCommand, getDefinition } from "./nav/definition.ts";
 export type { DefinitionLocation, DefinitionOutput } from "./nav/definition.ts";

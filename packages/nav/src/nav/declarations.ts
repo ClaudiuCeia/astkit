@@ -507,6 +507,74 @@ function getExportedModifiers(declaration: ts.Node): readonly ts.ModifierLike[] 
   return [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword), ...modifiers];
 }
 
+function getFunctionExportedModifiers(
+  declaration: ts.FunctionDeclaration,
+  defaultExport: boolean,
+): readonly ts.ModifierLike[] {
+  const modifiers = (ts.getModifiers(declaration) ?? []).filter(
+    (modifier) =>
+      modifier.kind !== ts.SyntaxKind.ExportKeyword &&
+      modifier.kind !== ts.SyntaxKind.DefaultKeyword &&
+      (!defaultExport || modifier.kind !== ts.SyntaxKind.DeclareKeyword),
+  );
+  return [
+    ts.factory.createModifier(ts.SyntaxKind.ExportKeyword),
+    ...(defaultExport ? [ts.factory.createModifier(ts.SyntaxKind.DefaultKeyword)] : []),
+    ...modifiers,
+  ];
+}
+
+const inferredTypeNodeFlags =
+  ts.NodeBuilderFlags.NoTruncation |
+  ts.NodeBuilderFlags.GenerateNamesForShadowedTypeParams |
+  ts.NodeBuilderFlags.UseStructuralFallback |
+  ts.NodeBuilderFlags.WriteClassExpressionAsTypeLiteral |
+  ts.NodeBuilderFlags.AllowEmptyTuple |
+  ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope;
+
+function typeToTypeNode(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  declaration: ts.Declaration,
+): ts.TypeNode {
+  const symbol = type.getSymbol();
+  const classDeclaration = symbol?.valueDeclaration;
+  if (
+    classDeclaration &&
+    (ts.isClassDeclaration(classDeclaration) || ts.isClassExpression(classDeclaration)) &&
+    classDeclaration.members.some(isNonPublicClassMember) &&
+    !isSymbolExportedFromSourceFile(checker, symbol, classDeclaration.getSourceFile())
+  ) {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
+  }
+
+  const flags =
+    inferredTypeNodeFlags |
+    (type.flags & ts.TypeFlags.UniqueESSymbol ? ts.NodeBuilderFlags.AllowUniqueESSymbolType : 0);
+  return (
+    checker.typeToTypeNode(type, declaration, flags) ??
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword)
+  );
+}
+
+function isSymbolExportedFromSourceFile(
+  checker: ts.TypeChecker,
+  symbol: ts.Symbol,
+  sourceFile: ts.SourceFile,
+): boolean {
+  const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+  if (!moduleSymbol) {
+    return false;
+  }
+  return checker.getExportsOfModule(moduleSymbol).some((exportedSymbol) => {
+    const semanticSymbol =
+      exportedSymbol.flags & ts.SymbolFlags.Alias
+        ? checker.getAliasedSymbol(exportedSymbol)
+        : exportedSymbol;
+    return semanticSymbol === symbol;
+  });
+}
+
 function inferTypeNode(
   checker: ts.TypeChecker,
   declaration: ts.Declaration,
@@ -515,11 +583,7 @@ function inferTypeNode(
   if (explicitType) {
     return explicitType;
   }
-  return checker.typeToTypeNode(
-    checker.getTypeAtLocation(declaration),
-    declaration,
-    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
-  );
+  return typeToTypeNode(checker, checker.getTypeAtLocation(declaration), declaration);
 }
 
 function inferReturnTypeNode(
@@ -533,11 +597,7 @@ function inferReturnTypeNode(
   if (!signature) {
     return undefined;
   }
-  return checker.typeToTypeNode(
-    checker.getReturnTypeOfSignature(signature),
-    declaration,
-    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
-  );
+  return typeToTypeNode(checker, checker.getReturnTypeOfSignature(signature), declaration);
 }
 
 function extractLeadingFileDoc(sourceFile: ts.SourceFile): string | undefined {
@@ -782,12 +842,18 @@ function buildInterfaceMemberInfo(
   return { name: "<member>", signature: fallbackText, line: pos.line, doc };
 }
 
-function buildEnumMemberInfo(sourceFile: ts.SourceFile, member: ts.EnumMember): MemberInfo {
+function buildEnumMemberInfo(
+  sourceFile: ts.SourceFile,
+  checker: ts.TypeChecker,
+  member: ts.EnumMember,
+): MemberInfo {
   const pos = fromPosition(sourceFile, member.getStart(sourceFile));
+  const symbol = checker.getSymbolAtLocation(member.name);
   return {
     name: member.name.getText(sourceFile),
     signature: printMemberNode(member, sourceFile).replace(/,$/u, ""),
     line: pos.line,
+    doc: symbol ? formatDoc(symbol, checker) : undefined,
   };
 }
 
@@ -795,14 +861,16 @@ function buildDeclarationText(
   sourceFile: ts.SourceFile,
   checker: ts.TypeChecker,
   declaration: ts.Declaration,
+  exportedName?: string,
+  defaultExport = false,
 ): string | null {
   if (ts.isFunctionDeclaration(declaration)) {
     return printDeclarationNode(
       ts.factory.updateFunctionDeclaration(
         declaration,
-        getExportedModifiers(declaration),
+        getFunctionExportedModifiers(declaration, defaultExport),
         declaration.asteriskToken,
-        declaration.name,
+        exportedName ? ts.factory.createIdentifier(exportedName) : declaration.name,
         declaration.typeParameters,
         declaration.parameters,
         inferReturnTypeNode(checker, declaration),
@@ -966,20 +1034,42 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
     const decls = semanticSymbol.getDeclarations();
     if (!decls || decls.length === 0) continue;
 
-    const localFunctionOverloads = decls.filter(
+    const allFunctionDeclarations = decls.filter(
       (candidate): candidate is ts.FunctionDeclaration =>
-        candidate.getSourceFile().fileName === resolved &&
-        ts.isFunctionDeclaration(candidate) &&
-        !typeChecker.isImplementationOfOverload(candidate),
+        ts.isFunctionDeclaration(candidate) && !typeChecker.isImplementationOfOverload(candidate),
     );
-    const declaration = localFunctionOverloads[0] ?? decls[0]!;
+    const localFunctionDeclarations = allFunctionDeclarations.filter(
+      (candidate) => candidate.getSourceFile().fileName === resolved,
+    );
+    const functionDeclarations =
+      localFunctionDeclarations.length > 0 ? localFunctionDeclarations : allFunctionDeclarations;
+    const declaration = functionDeclarations[0] ?? decls[0]!;
     const declarationSourceFile = declaration.getSourceFile();
     const isLocalDeclaration = declarationSourceFile.fileName === resolved;
+    const declarationFunctionName = ts.isFunctionDeclaration(declaration)
+      ? declaration.name?.text
+      : undefined;
+    const exportedFunctionName =
+      exp.getName() !== "default" &&
+      exp.getName() !== declarationFunctionName &&
+      ts.isExportSpecifier(exportSite) &&
+      ts.isIdentifier(exportSite.name)
+        ? exp.getName()
+        : undefined;
+    const isDefaultExport = exp.getName() === "default";
+    const reportsSourceFunctionLines = ts.isFunctionDeclaration(exportSite);
 
     const kind = getDeclarationKind(declaration);
-    const declarationText = isLocalDeclaration
-      ? buildDeclarationText(declarationSourceFile, typeChecker, declaration)
-      : null;
+    const declarationText =
+      isLocalDeclaration || functionDeclarations.length > 0
+        ? buildDeclarationText(
+            declarationSourceFile,
+            typeChecker,
+            declaration,
+            exportedFunctionName,
+            isDefaultExport,
+          )
+        : null;
     const type = (() => {
       // Prefer expanding type aliases to their RHS, so output resembles `deno doc`.
       if (ts.isTypeAliasDeclaration(declaration)) {
@@ -1006,16 +1096,25 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
       declarationText: declarationText ?? undefined,
     };
 
-    if (localFunctionOverloads.length > 1) {
-      info.overloads = localFunctionOverloads.slice(1).flatMap((overload) => {
-        const text = buildDeclarationText(sourceFile, typeChecker, overload);
+    if (functionDeclarations.length > 1) {
+      info.overloads = functionDeclarations.slice(1).flatMap((overload) => {
+        const overloadSourceFile = overload.getSourceFile();
+        const text = buildDeclarationText(
+          overloadSourceFile,
+          typeChecker,
+          overload,
+          exportedFunctionName,
+          isDefaultExport,
+        );
         if (!text) {
           return [];
         }
         return [
           {
             declarationText: text,
-            line: fromPosition(sourceFile, overload.getStart(sourceFile)).line,
+            line: reportsSourceFunctionLines
+              ? fromPosition(sourceFile, overload.getStart(sourceFile)).line
+              : pos.line,
           },
         ];
       });
@@ -1044,7 +1143,7 @@ export function getDeclarations(filePath: string): DeclarationsOutput {
 
     if (isLocalDeclaration && kind === "enum" && ts.isEnumDeclaration(declaration)) {
       info.members = declaration.members.map((member) =>
-        buildEnumMemberInfo(declarationSourceFile, member),
+        buildEnumMemberInfo(declarationSourceFile, typeChecker, member),
       );
     }
 

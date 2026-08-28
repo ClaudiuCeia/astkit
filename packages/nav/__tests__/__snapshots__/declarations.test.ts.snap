@@ -1,5 +1,24 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
+exports[`prints declaration-safe inferred variable types 1`] = `
+"//declaration-inference.ts
+ 1: export const token: unique symbol
+ •
+ 3: export const Anonymous: { new (): { value: number; method(): string; }; }
+ •
+11: export const NamedExpression: { new (): { value: number; }; }
+ •
+23: export const nonNameable: { value: number; }
+ •
+30: export const nominal: unknown
+ •
+32: export class PublicNominal {
+34:   public value: number
+35: }
+ •
+37: export const publicNominal: PublicNominal"
+`;
+
 exports[`nav declarations output matches snapshot 1`] = `
 "//nav-docs.ts
  •
