@@ -78,8 +78,13 @@ Matches `foo + foo`, not `foo + bar`.
 Regex-constrained holes intentionally use a safe subset:
 
 - max regex constraint length: `256`
-- disallowed constructs: lookarounds, backreferences, nested quantified groups, nullable repetition,
-  overlapping alternatives, and overlapping sibling repetitions
+- unsupported constructs: lookarounds, backreferences, inline modifier groups, legacy octal escapes,
+  and incomplete control escapes
+- rejected ambiguous structures: more than `256` cumulative ambiguity expansions across alternatives,
+  sequences, and bounded repetitions; overlapping variable sibling repetitions; unbounded repetition
+  of nullable or ambiguous alternatives; and compounding nested quantifiers
+- bounded quantifiers are limited to `2048` cumulative work units; deterministic non-nullable ranges
+  do not consume ambiguity expansions
 - constrained captures longer than `2048` characters are rejected
 
 Example with variadic wildcard:

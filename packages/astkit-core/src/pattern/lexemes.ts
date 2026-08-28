@@ -80,7 +80,10 @@ const triviaParser = any(
   parseRegex(/\/\*[\s\S]*?\*\//, "block comment"),
 );
 
-const escapedCharacterParser = map(seq(str("\\"), anyChar()), ([slash, char]) => `${slash}${char}`);
+const escapedCharacterParser = map(
+  seq(str("\\"), any(str("\r\n"), anyChar())),
+  ([slash, char]) => `${slash}${char}`,
+);
 
 const singleQuotedStringParser = map(
   seq(
@@ -102,7 +105,10 @@ const doubleQuotedStringParser = map(
 
 // Template literals with nested expressions are intentionally treated as mixed
 // punctuation/identifier tokens. This parser handles plain template literals.
-const plainTemplateLiteralParser = parseRegex(/`(?:\\.|[^`\\])*`/, "template literal");
+const plainTemplateLiteralParser = parseRegex(
+  /`(?:\\(?:\r\n|[\s\S])|[^`\\])*`/,
+  "template literal",
+);
 
 const identifierParser = parseRegex(/[A-Za-z_$][A-Za-z0-9_$]*/, "identifier");
 const numberParser = parseRegex(/(?:\d[\d_]*(?:\.[\d_]+)?(?:[eE][+-]?[\d_]+)?|\.[\d_]+)/, "number");

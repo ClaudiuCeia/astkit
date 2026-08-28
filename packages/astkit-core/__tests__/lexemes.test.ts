@@ -27,6 +27,56 @@ test("prefers multi-character operators and complete numeric literals", () => {
   ]);
 });
 
+test("prefers every prefix-related multi-character operator", () => {
+  const operators = [
+    ">>>=",
+    "===",
+    "!==",
+    ">>=",
+    "<<=",
+    "&&=",
+    "||=",
+    "??=",
+    "**=",
+    ">>>",
+    "...",
+    "=>",
+    "==",
+    "!=",
+    "<=",
+    ">=",
+    "++",
+    "--",
+    "&&",
+    "||",
+    "??",
+    "?.",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    "%=",
+    "&=",
+    "|=",
+    "^=",
+    ">>",
+    "<<",
+    "**",
+  ];
+
+  expect(scanLexemeSpans(operators.join(" "))?.map((span) => span.value)).toEqual(operators);
+});
+
+test("keeps escaped line continuations inside quoted lexemes", () => {
+  const lineTerminators = ["\n", "\r\n", "\u2028", "\u2029"];
+  for (const lineTerminator of lineTerminators) {
+    for (const quote of ["'", '"', "`"]) {
+      const literal = `${quote}before\\${lineTerminator}after${quote}`;
+      expect(scanLexemeSpans(literal)?.map((span) => span.value)).toEqual([literal]);
+    }
+  }
+});
+
 test("falls back to punctuation for unterminated quoted text", () => {
   expect(scanLexemeSpans("'unterminated")?.map((span) => span.value)).toEqual([
     "'",

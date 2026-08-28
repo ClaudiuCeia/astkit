@@ -26,6 +26,9 @@ import {
 
 const HOLE_INNER_NAME_PATTERN = /(?:[A-Za-z_][A-Za-z0-9_]*|_)/;
 const MAX_HOLE_REGEX_CONSTRAINT_LENGTH = 256;
+const MAX_REGEX_AMBIGUITY_EXPANSIONS = 256;
+const MAX_REGEX_BOUNDED_REPETITION_WORK = 2048;
+const MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK = 2;
 
 type RawHoleToken = {
   kind: "hole";
@@ -552,12 +555,15 @@ function parseRegexQuantifier(value: string): { minimum: number; maximum: number
     return null;
   }
   const minimum = Number(range[1]);
+  const unbounded = range[2] === "";
   const maximum =
-    range[2] === undefined
-      ? minimum
-      : range[2] === ""
-        ? Number.POSITIVE_INFINITY
-        : Number(range[2]);
+    range[2] === undefined ? minimum : unbounded ? Number.POSITIVE_INFINITY : Number(range[2]);
+  if (
+    !Number.isSafeInteger(minimum) ||
+    (!unbounded && (!Number.isSafeInteger(maximum) || maximum < minimum))
+  ) {
+    return null;
+  }
   return { minimum, maximum };
 }
 
@@ -737,11 +743,85 @@ function trailingVariableRepetitionCharacters(expression: RegexExpression): Rege
   return [];
 }
 
-function alternativesOverlap(expression: RegexExpression): boolean {
-  if (expression.kind === "alternation") {
-    for (let left = 0; left < expression.branches.length; left += 1) {
-      for (let right = left + 1; right < expression.branches.length; right += 1) {
+type RegexPath = RegexCharacterSet[];
+
+function appendRegexPaths(left: RegexPath[], right: RegexPath[]): RegexPath[] | null {
+  if (left.length * right.length > MAX_REGEX_AMBIGUITY_EXPANSIONS) {
+    return null;
+  }
+  return left.flatMap((leftPath) => right.map((rightPath) => [...leftPath, ...rightPath]));
+}
+
+function expandRegexPaths(expression: RegexExpression): RegexPath[] | null {
+  switch (expression.kind) {
+    case "empty":
+      return [[]];
+    case "atom":
+      return expression.nullable ? [[]] : [[expression.characters]];
+    case "alternation": {
+      const paths: RegexPath[] = [];
+      for (const branch of expression.branches) {
+        const branchPaths = expandRegexPaths(branch);
+        if (!branchPaths || paths.length + branchPaths.length > MAX_REGEX_AMBIGUITY_EXPANSIONS) {
+          return null;
+        }
+        paths.push(...branchPaths);
+      }
+      return paths;
+    }
+    case "sequence": {
+      let paths: RegexPath[] = [[]];
+      for (const part of expression.parts) {
+        const partPaths = expandRegexPaths(part);
+        if (!partPaths) return null;
+        const combined = appendRegexPaths(paths, partPaths);
+        if (!combined) return null;
+        paths = combined;
+      }
+      return paths;
+    }
+    case "repeat": {
+      if (
+        expression.minimum !== expression.maximum ||
+        expression.maximum > MAX_REGEX_AMBIGUITY_EXPANSIONS
+      ) {
+        return null;
+      }
+      const operandPaths = expandRegexPaths(expression.operand);
+      if (!operandPaths) return null;
+      let paths: RegexPath[] = [[]];
+      for (let count = 0; count < expression.maximum; count += 1) {
+        const combined = appendRegexPaths(paths, operandPaths);
+        if (!combined) return null;
+        paths = combined;
+      }
+      return paths;
+    }
+  }
+}
+
+function regexPathsOverlapAsPrefix(left: RegexPath, right: RegexPath): boolean {
+  const sharedLength = Math.min(left.length, right.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    if (!regexCharacterSetsOverlap(left[index]!, right[index]!)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function alternativeBranchesAreAmbiguous(expression: RegexExpression): boolean {
+  if (expression.kind !== "alternation") return false;
+
+  const branchPaths = expression.branches.map(expandRegexPaths);
+  for (let left = 0; left < expression.branches.length; left += 1) {
+    for (let right = left + 1; right < expression.branches.length; right += 1) {
+      const leftPaths = branchPaths[left];
+      const rightPaths = branchPaths[right];
+      if (!leftPaths || !rightPaths) {
         if (
+          isNullableRegexExpression(expression.branches[left]!) ||
+          isNullableRegexExpression(expression.branches[right]!) ||
           regexCharacterSetsOverlap(
             firstRegexCharacters(expression.branches[left]!),
             firstRegexCharacters(expression.branches[right]!),
@@ -749,37 +829,223 @@ function alternativesOverlap(expression: RegexExpression): boolean {
         ) {
           return true;
         }
+        continue;
+      }
+      if (
+        leftPaths.some((leftPath) =>
+          rightPaths.some((rightPath) => regexPathsOverlapAsPrefix(leftPath, rightPath)),
+        )
+      ) {
+        return true;
       }
     }
-  }
-
-  if (expression.kind === "sequence") {
-    return expression.parts.some(alternativesOverlap);
-  }
-  if (expression.kind === "alternation") {
-    return expression.branches.some(alternativesOverlap);
-  }
-  if (expression.kind === "repeat") {
-    return alternativesOverlap(expression.operand);
   }
   return false;
 }
 
+function hasAmbiguousAlternatives(expression: RegexExpression): boolean {
+  if (alternativeBranchesAreAmbiguous(expression)) return true;
+  if (expression.kind === "sequence") {
+    return expression.parts.some(hasAmbiguousAlternatives);
+  }
+  if (expression.kind === "alternation") {
+    return expression.branches.some(hasAmbiguousAlternatives);
+  }
+  if (expression.kind === "repeat") {
+    return hasAmbiguousAlternatives(expression.operand);
+  }
+  return false;
+}
+
+function containsVariableRegexRepetition(expression: RegexExpression): boolean {
+  if (expression.kind === "repeat") {
+    return (
+      expression.minimum !== expression.maximum ||
+      containsVariableRegexRepetition(expression.operand)
+    );
+  }
+  if (expression.kind === "sequence") {
+    return expression.parts.some(containsVariableRegexRepetition);
+  }
+  if (expression.kind === "alternation") {
+    return expression.branches.some(containsVariableRegexRepetition);
+  }
+  return false;
+}
+
+function cappedRegexWorkProduct(left: number, right: number, maximum: number): number {
+  if (left === 0 || right === 0) return 0;
+  if (left > maximum / right) return maximum + 1;
+  return left * right;
+}
+
+function cappedRegexWorkSum(left: number, right: number, maximum: number): number {
+  return Math.min(left + right, maximum + 1);
+}
+
+function regexBoundedRepetitionWork(expression: RegexExpression): number {
+  if (expression.kind === "empty" || expression.kind === "atom") return 0;
+  if (expression.kind === "alternation") {
+    return Math.max(...expression.branches.map(regexBoundedRepetitionWork));
+  }
+  if (expression.kind === "sequence") {
+    let work = 0;
+    for (const part of expression.parts) {
+      work = cappedRegexWorkSum(
+        work,
+        regexBoundedRepetitionWork(part),
+        MAX_REGEX_BOUNDED_REPETITION_WORK,
+      );
+      if (work > MAX_REGEX_BOUNDED_REPETITION_WORK) return work;
+    }
+    return work;
+  }
+
+  const operandWork = regexBoundedRepetitionWork(expression.operand);
+  if (!Number.isFinite(expression.maximum)) return operandWork;
+  return cappedRegexWorkProduct(
+    expression.maximum,
+    Math.max(1, operandWork),
+    MAX_REGEX_BOUNDED_REPETITION_WORK,
+  );
+}
+
+function regexNestedVariableRepetitionWork(
+  expression: RegexExpression,
+  fixedMultiplier = 1,
+): number {
+  if (expression.kind === "empty" || expression.kind === "atom") return 0;
+  if (expression.kind === "alternation") {
+    return Math.max(
+      ...expression.branches.map((branch) =>
+        regexNestedVariableRepetitionWork(branch, fixedMultiplier),
+      ),
+    );
+  }
+  if (expression.kind === "sequence") {
+    let work = 0;
+    for (const part of expression.parts) {
+      const partWork = regexNestedVariableRepetitionWork(part, fixedMultiplier);
+      if (partWork === 0) continue;
+      work =
+        work === 0
+          ? partWork
+          : cappedRegexWorkProduct(work, partWork, MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK);
+      if (work > MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK) return work;
+    }
+    return work;
+  }
+
+  if (expression.minimum !== expression.maximum) {
+    if (containsVariableRegexRepetition(expression.operand)) {
+      if (!Number.isFinite(expression.maximum)) {
+        return MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK + 1;
+      }
+      const nestedMultiplier = cappedRegexWorkProduct(
+        fixedMultiplier,
+        expression.maximum,
+        MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK,
+      );
+      return regexNestedVariableRepetitionWork(expression.operand, nestedMultiplier);
+    }
+    return Math.max(
+      fixedMultiplier,
+      regexNestedVariableRepetitionWork(expression.operand, fixedMultiplier),
+    );
+  }
+
+  const nestedMultiplier = cappedRegexWorkProduct(
+    fixedMultiplier,
+    expression.maximum,
+    MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK,
+  );
+  return regexNestedVariableRepetitionWork(expression.operand, nestedMultiplier);
+}
+
+const REGEX_AMBIGUITY_BUDGET_EXCEEDED = MAX_REGEX_AMBIGUITY_EXPANSIONS + 1;
+
+function addRegexAmbiguityExpansions(left: number, right: number): number {
+  return Math.min(left + right, REGEX_AMBIGUITY_BUDGET_EXCEEDED);
+}
+
+function multiplyRegexAmbiguityExpansions(left: number, right: number): number {
+  if (left > MAX_REGEX_AMBIGUITY_EXPANSIONS / right) {
+    return REGEX_AMBIGUITY_BUDGET_EXCEEDED;
+  }
+  return left * right;
+}
+
+function powerRegexAmbiguityExpansions(base: number, exponent: number): number {
+  let result = 1;
+  let factor = base;
+  let remaining = exponent;
+  while (remaining > 0) {
+    if (remaining % 2 === 1) {
+      result = multiplyRegexAmbiguityExpansions(result, factor);
+      if (result > MAX_REGEX_AMBIGUITY_EXPANSIONS) return result;
+    }
+    remaining = Math.floor(remaining / 2);
+    if (remaining > 0) {
+      factor = multiplyRegexAmbiguityExpansions(factor, factor);
+    }
+  }
+  return result;
+}
+
+function regexAmbiguityExpansionCount(expression: RegexExpression): number {
+  if (expression.kind === "empty" || expression.kind === "atom") return 1;
+
+  if (expression.kind === "sequence") {
+    let expansions = 1;
+    for (const part of expression.parts) {
+      expansions = multiplyRegexAmbiguityExpansions(expansions, regexAmbiguityExpansionCount(part));
+      if (expansions > MAX_REGEX_AMBIGUITY_EXPANSIONS) return expansions;
+    }
+    return expansions;
+  }
+
+  if (expression.kind === "alternation") {
+    const branchExpansions = expression.branches.map(regexAmbiguityExpansionCount);
+    if (!alternativeBranchesAreAmbiguous(expression)) {
+      return Math.max(...branchExpansions);
+    }
+    return branchExpansions.reduce(addRegexAmbiguityExpansions, 0);
+  }
+
+  const operandExpansions = regexAmbiguityExpansionCount(expression.operand);
+  if (!Number.isFinite(expression.maximum)) {
+    return operandExpansions > 1 ? REGEX_AMBIGUITY_BUDGET_EXCEEDED : operandExpansions;
+  }
+  if (expression.minimum === expression.maximum) {
+    return powerRegexAmbiguityExpansions(operandExpansions, expression.maximum);
+  }
+  if (operandExpansions === 1) {
+    if (!isNullableRegexExpression(expression.operand)) return 1;
+    return Math.min(expression.maximum - expression.minimum + 1, REGEX_AMBIGUITY_BUDGET_EXCEEDED);
+  }
+
+  let expansions = 0;
+  let repeatedExpansions = powerRegexAmbiguityExpansions(operandExpansions, expression.minimum);
+  for (let count = expression.minimum; count <= expression.maximum; count += 1) {
+    expansions = addRegexAmbiguityExpansions(expansions, repeatedExpansions);
+    if (expansions > MAX_REGEX_AMBIGUITY_EXPANSIONS) return expansions;
+    repeatedExpansions = multiplyRegexAmbiguityExpansions(repeatedExpansions, operandExpansions);
+  }
+  return expansions;
+}
+
 function findRegexSafetyIssue(expression: RegexExpression): string | null {
   if (expression.kind === "repeat") {
-    if (expression.maximum > 1 && isNullableRegexExpression(expression.operand)) {
+    if (!Number.isFinite(expression.maximum) && isNullableRegexExpression(expression.operand)) {
       return "repetition of a nullable expression is not allowed";
     }
-    if (expression.maximum > 1 && alternativesOverlap(expression.operand)) {
-      return "repetition with overlapping alternatives is not allowed";
+    if (!Number.isFinite(expression.maximum) && hasAmbiguousAlternatives(expression.operand)) {
+      return "repetition with ambiguous alternatives is not allowed";
     }
     return findRegexSafetyIssue(expression.operand);
   }
 
   if (expression.kind === "alternation") {
-    if (alternativesOverlap(expression)) {
-      return "overlapping alternatives are not allowed";
-    }
     for (const branch of expression.branches) {
       const issue = findRegexSafetyIssue(branch);
       if (issue) return issue;
@@ -827,9 +1093,6 @@ function findRegexSafetyIssue(expression: RegexExpression): string | null {
 }
 
 function scanRegexSafety(source: string): { safe: true } | { safe: false; reason: string } {
-  type GroupState = { containsQuantifier: boolean };
-  const groups: GroupState[] = [];
-
   const parsed = regexSafetyScannerParser({ text: source, index: 0 });
   if (!parsed.success) {
     return { safe: false, reason: "regex safety scanner could not parse the constraint" };
@@ -887,41 +1150,6 @@ function scanRegexSafety(source: string): { safe: true } | { safe: false; reason
           reason: "lookaround assertions are not allowed",
         };
       }
-      groups.push({ containsQuantifier: false });
-      continue;
-    }
-
-    if (token.kind === "groupClose") {
-      const closed = groups.pop();
-      if (!closed) {
-        continue;
-      }
-
-      const next = parsed.value[index + 1];
-      const nextIsQuantifier = next?.kind === "quantifier";
-      if (nextIsQuantifier && closed.containsQuantifier) {
-        return {
-          safe: false,
-          reason: "nested quantifiers in grouped expressions are not allowed",
-        };
-      }
-
-      const parent = groups[groups.length - 1];
-      if (parent && (closed.containsQuantifier || nextIsQuantifier)) {
-        parent.containsQuantifier = true;
-      }
-
-      if (nextIsQuantifier) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (token.kind === "quantifier") {
-      const current = groups[groups.length - 1];
-      if (current) {
-        current.containsQuantifier = true;
-      }
     }
   }
 
@@ -932,6 +1160,27 @@ function scanRegexSafety(source: string): { safe: true } | { safe: false; reason
   const issue = findRegexSafetyIssue(expression.expression);
   if (issue) {
     return { safe: false, reason: issue };
+  }
+  if (
+    regexNestedVariableRepetitionWork(expression.expression) >
+    MAX_REGEX_NESTED_VARIABLE_REPETITION_WORK
+  ) {
+    return {
+      safe: false,
+      reason: "nested quantifiers with compounding variable repetitions are not allowed",
+    };
+  }
+  if (regexBoundedRepetitionWork(expression.expression) > MAX_REGEX_BOUNDED_REPETITION_WORK) {
+    return {
+      safe: false,
+      reason: `bounded regex repetition exceeds ${MAX_REGEX_BOUNDED_REPETITION_WORK} work units`,
+    };
+  }
+  if (regexAmbiguityExpansionCount(expression.expression) > MAX_REGEX_AMBIGUITY_EXPANSIONS) {
+    return {
+      safe: false,
+      reason: `cumulative regex ambiguity exceeds ${MAX_REGEX_AMBIGUITY_EXPANSIONS} expansions`,
+    };
   }
 
   return { safe: true };
