@@ -1,5 +1,5 @@
 import path from "node:path";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import {
   DEFAULT_EXCLUDED_DIRECTORIES,
   DEFAULT_SOURCE_EXTENSIONS,

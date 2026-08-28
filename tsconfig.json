@@ -11,6 +11,8 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
+    "libReplacement": false,
     "noEmit": true,
 
     // Best practices

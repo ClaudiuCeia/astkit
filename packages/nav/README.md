@@ -5,10 +5,12 @@ TypeScript language-service navigation utilities for exported declarations, defi
 ## Install
 
 ```bash
-npm install --save-dev @claudiu-ceia/nav typescript@^6
+npm install --save-dev @claudiu-ceia/nav typescript@^7
 ```
 
-`@claudiu-ceia/nav` uses the target project's `typescript` installation.
+`@claudiu-ceia/nav` supports projects on TypeScript 5.9, 6, and 7. TypeScript 7.0 does not expose
+a stable compiler API, so navigation uses its official TypeScript 6 compatibility package
+internally while the target project can use the TypeScript 7 compiler.
 
 ## CLI
 

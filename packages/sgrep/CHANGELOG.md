@@ -1,5 +1,13 @@
 # @claudiu-ceia/sgrep
 
+## 0.3.1
+
+### Patch Changes
+
+- Support TypeScript 7 projects through the official compiler API compatibility package and refresh runtime dependencies.
+- Updated dependencies
+  - @claudiu-ceia/astkit-core@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

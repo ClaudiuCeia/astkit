@@ -1,5 +1,16 @@
 # @claudiu-ceia/astkit
 
+## 0.2.1
+
+### Patch Changes
+
+- Support TypeScript 7 projects through the official compiler API compatibility package and refresh runtime and release tooling dependencies.
+- Include the latest declaration-preservation and structural matcher fixes from the workspace packages.
+- Updated dependencies
+  - @claudiu-ceia/nav@0.3.1
+  - @claudiu-ceia/sgrep@0.3.1
+  - @claudiu-ceia/spatch@0.4.1
+
 ## 0.2.0
 
 ### Minor Changes

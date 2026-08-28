@@ -1,5 +1,13 @@
 # @claudiu-ceia/spatch
 
+## 0.4.1
+
+### Patch Changes
+
+- Update `@claudiu-ceia/combine` to 0.6.1 and refresh runtime dependencies.
+- Updated dependencies
+  - @claudiu-ceia/astkit-core@0.3.1
+
 ## 0.4.0
 
 ### Minor Changes

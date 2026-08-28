@@ -57,7 +57,7 @@ Structural code transformation using pattern matching.
 
 ## Distribution
 
-npm package with a `bin` entry point. Users install as a devDependency or run via `npx`/`bunx`. Uses the target project's own `typescript` installation for accurate type resolution.
+npm package with a `bin` entry point. Users install as a devDependency or run via `npx`/`bunx`. Navigation uses the bundled TypeScript 6 compatibility compiler API while the public packages support TypeScript 5.9 through 7 as a peer dependency.
 
 ---
 

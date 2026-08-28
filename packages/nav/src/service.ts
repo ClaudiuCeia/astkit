@@ -1,5 +1,5 @@
 import { realpathSync, statSync } from "node:fs";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import path from "node:path";
 
 type WorkspaceBoundary = {

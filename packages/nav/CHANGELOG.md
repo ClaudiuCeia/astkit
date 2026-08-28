@@ -1,5 +1,14 @@
 # @claudiu-ceia/nav
 
+## 0.3.1
+
+### Patch Changes
+
+- Preserve inferred types, declaration syntax, and aliased or ambient exports in declaration output.
+- Support TypeScript 7 projects through the official compiler API compatibility package and update `@claudiu-ceia/combine` to 0.6.1.
+- Updated dependencies
+  - @claudiu-ceia/astkit-core@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

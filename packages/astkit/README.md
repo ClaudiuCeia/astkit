@@ -12,10 +12,12 @@ It bundles four command families behind one CLI:
 ## Install
 
 ```bash
-npm install --save-dev @claudiu-ceia/astkit typescript@^6
+npm install --save-dev @claudiu-ceia/astkit typescript@^7
 ```
 
-`astkit` uses the target project's `typescript` installation for language-service operations.
+`astkit` supports projects on TypeScript 5.9, 6, and 7. TypeScript 7.0 does not expose a stable
+compiler API, so language-service operations use its official TypeScript 6 compatibility package
+internally while the target project can use the TypeScript 7 compiler.
 
 ## Run
 

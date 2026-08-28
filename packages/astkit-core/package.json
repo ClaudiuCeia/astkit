@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/astkit-core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Shared core utilities for astkit packages (pattern matching, file scanning, tracing).",
   "homepage": "https://github.com/ClaudiuCeia/astkit#readme",
   "bugs": {
@@ -33,7 +33,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@claudiu-ceia/combine": "^0.6.0"
+    "@claudiu-ceia/combine": "^0.6.1"
   },
   "engines": {
     "node": ">=22.12.0"

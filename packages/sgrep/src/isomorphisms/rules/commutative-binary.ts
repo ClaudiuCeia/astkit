@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import type { IsomorphismRule } from "../types.ts";
 
 const COMMUTATIVE_OPERATOR_KINDS = new Set<ts.SyntaxKind>([

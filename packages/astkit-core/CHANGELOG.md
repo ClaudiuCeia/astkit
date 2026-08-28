@@ -1,5 +1,12 @@
 # @claudiu-ceia/astkit-core
 
+## 0.3.1
+
+### Patch Changes
+
+- Harden regex constraint and compositional lexeme parsing while reducing repeated scanner work.
+- Update `@claudiu-ceia/combine` to 0.6.1 and refresh development tooling.
+
 ## 0.3.0
 
 ### Minor Changes

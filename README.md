@@ -24,7 +24,7 @@ This root README stays repo-focused to avoid duplicating CLI docs across package
 Install the umbrella package for one entrypoint:
 
 ```bash
-npm install --save-dev @claudiu-ceia/astkit typescript@^6
+npm install --save-dev @claudiu-ceia/astkit typescript@^7
 ```
 
 Or install individual tools:
@@ -32,8 +32,12 @@ Or install individual tools:
 ```bash
 npm install --save-dev @claudiu-ceia/sgrep
 npm install --save-dev @claudiu-ceia/spatch
-npm install --save-dev @claudiu-ceia/nav typescript@^6
+npm install --save-dev @claudiu-ceia/nav typescript@^7
 ```
+
+The navigation packages support projects on TypeScript 5.9, 6, and 7. Because TypeScript 7.0
+does not expose a stable compiler API, they use the official TypeScript 6 compatibility package
+internally while the project compiler can remain on TypeScript 7.
 
 ## Monorepo development
 

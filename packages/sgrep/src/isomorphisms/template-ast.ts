@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import { tokenizeTemplate } from "@claudiu-ceia/astkit-core";
 import type { TemplateToken } from "@claudiu-ceia/astkit-core";
 import type { IsomorphismContext } from "./types.ts";

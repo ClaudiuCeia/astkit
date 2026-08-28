@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import path from "node:path";
 import { Chalk } from "chalk";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import { formatDeclarationsOutput, getDeclarations } from "../src/nav/declarations.ts";
 
 const fixturesDir = path.resolve(import.meta.dir, "fixtures");

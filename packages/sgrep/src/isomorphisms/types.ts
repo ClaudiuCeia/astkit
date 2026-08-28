@@ -1,4 +1,4 @@
-import type ts from "typescript";
+import type ts from "@typescript/typescript6";
 
 /** Parsed template source and AST available to isomorphism rules. */
 export type IsomorphismContext = {

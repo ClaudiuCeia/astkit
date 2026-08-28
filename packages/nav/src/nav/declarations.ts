@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import path from "node:path";
 import { buildCommand } from "@stricli/core";
 import chalk, { Chalk, type ChalkInstance } from "chalk";
