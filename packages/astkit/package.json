@@ -18,7 +18,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ClaudiuCeia/astkit.git"
+    "url": "git+https://github.com/ClaudiuCeia/astkit.git",
+    "directory": "packages/astkit"
   },
   "bin": {
     "astkit": "./dist/cli.js"
