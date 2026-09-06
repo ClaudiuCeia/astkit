@@ -1,16 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "bun"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    groups:
-      development-dependencies:
-        dependency-type: "development"
-    ignore:
-      - dependency-name: "@types/node"
-        versions: [">=23"]
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

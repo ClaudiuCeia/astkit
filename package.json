@@ -13,7 +13,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings .",
-    "audit": "bun audit --production",
+    "audit": "bun audit",
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
@@ -32,19 +32,19 @@
     "skill:install": "bunx skills@1.5.23 add ./packages/astkit/skills/astkit-tooling -a codex -y"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.1",
+    "@changesets/cli": "^3.0.2",
     "@claudiu-ceia/sgrep": "workspace:*",
     "@claudiu-ceia/spatch": "workspace:*",
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.1",
     "@types/node": "22.20.1",
-    "knip": "^6.33.0",
+    "knip": "^6.34.0",
     "mitata": "^1.0.34",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
     "typescript": "^7.0.2"
   },
   "overrides": {
     "@types/node": "22.20.1"
   },
-  "packageManager": "bun@1.4.0"
+  "packageManager": "bun@1.4.2"
 }

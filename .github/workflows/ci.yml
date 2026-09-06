@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -26,8 +26,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: "1.4.0"
 
       - name: Install dependencies
         run: bun ci
@@ -59,6 +57,9 @@ jobs:
       - name: Node smoke test (astkit library import)
         run: node -e "import('./packages/astkit/dist/index.js').then(() => console.log('ok'))"
 
+      - name: Node smoke test (workspace package imports)
+        run: node -e "Promise.all(['astkit-core', 'nav', 'sgrep'].map((name) => import('./packages/' + name + '/dist/index.js'))).then(() => console.log('ok'))"
+
       - name: Node smoke test (spatch package import)
         run: node -e "import('@claudiu-ceia/spatch').then((m) => { if (typeof m.patchProject !== 'function') throw new Error('missing patchProject export'); console.log('ok'); })"
 
@@ -68,11 +69,14 @@ jobs:
       - name: Node smoke test (spatch CLI)
         run: node packages/spatch/dist/cli.js --help
 
+      - name: Node smoke test (nav and sgrep CLIs)
+        run: node packages/nav/dist/cli.js --help && node packages/sgrep/dist/cli.js --help
+
       - name: Test with coverage
         run: bun run test:coverage
 
   typescript-compatibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -86,8 +90,6 @@ jobs:
           node-version: "24"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: "1.4.0"
 
       - name: Install dependencies
         run: bun ci

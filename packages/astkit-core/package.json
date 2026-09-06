@@ -33,7 +33,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@claudiu-ceia/combine": "^0.6.1"
+    "@claudiu-ceia/combine": "^0.11.2"
   },
   "engines": {
     "node": ">=22.12.0"
