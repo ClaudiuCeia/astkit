@@ -1,5 +1,14 @@
 # @claudiu-ceia/astkit
 
+## 0.2.2
+
+### Patch Changes
+
+- c77a828: Update `@claudiu-ceia/combine` to 0.11.2.
+- Updated dependencies [c77a828]
+  - @claudiu-ceia/nav@0.3.2
+  - @claudiu-ceia/spatch@0.4.2
+
 ## 0.2.1
 
 ### Patch Changes
