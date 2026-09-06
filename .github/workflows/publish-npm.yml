@@ -69,3 +69,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version-script: bun run version-packages
           publish-script: bun run release
+          push-with-git-cli: false
