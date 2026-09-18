@@ -17,7 +17,7 @@ import {
   validateReplacementTemplate,
 } from "@claudiu-ceia/astkit-core";
 import { applyReplacementSpans } from "../replacement-spans.ts";
-import { writeFileIfUnchangedAtomically } from "../file-write.ts";
+import { commitTransaction, type TransactionEntry } from "../file-write.ts";
 import type { SpatchFileResult, SpatchOptions } from "../types.ts";
 import type { ParsedPatchSpec } from "./parse.ts";
 
@@ -105,11 +105,11 @@ export async function rewriteProject(
     writeNs: 0n,
   };
   const rewriteStarted = verbose > 0 ? nowNs() : 0n;
-  const results = await mapLimit(
+  const analyses = await mapLimit(
     files,
     async (filePath) => {
       const perFileStarted = verbose >= 2 ? nowNs() : 0n;
-      const fileResult = await rewriteFile({
+      const analysis = await analyzeFile({
         cwd,
         scopePath: resolvedScope,
         filePath,
@@ -120,15 +120,15 @@ export async function rewriteProject(
         dryRun,
         stats: verbose > 0 ? stats : undefined,
       });
-      if (verbose >= 2 && fileResult) {
+      if (verbose >= 2 && analysis) {
         slowFiles.push({
-          file: fileResult.file,
+          file: analysis.fileResult.file,
           ms: nsToMs(nowNs() - perFileStarted),
-          matches: fileResult.matchCount,
-          replacements: fileResult.replacementCount,
+          matches: analysis.fileResult.matchCount,
+          replacements: analysis.fileResult.replacementCount,
         });
       }
-      return fileResult;
+      return analysis;
     },
     { concurrency },
   );
@@ -136,6 +136,27 @@ export async function rewriteProject(
     log(
       `[spatch] rewriteFiles ${formatMs(nsToMs(nowNs() - rewriteStarted))} concurrency=${concurrency} dryRun=${dryRun}`,
     );
+  }
+
+  // Collect write entries from analysis results; commits happen after all
+  // analysis completes so a later analysis failure cannot partially modify files.
+  const writeEntries: TransactionEntry[] = [];
+  for (const analysis of analyses) {
+    if (analysis?.writeEntry) {
+      writeEntries.push(analysis.writeEntry);
+    }
+  }
+
+  // Transactional commit: preflight all, then write in deterministic order.
+  if (writeEntries.length > 0) {
+    const writeStarted = verbose > 0 ? nowNs() : 0n;
+    await commitTransaction(writeEntries);
+    if (verbose > 0) {
+      stats.writeNs += nowNs() - writeStarted;
+    }
+  }
+
+  if (verbose > 0) {
     log(
       `[spatch] breakdown read=${formatMs(nsToMs(stats.readNs))} match=${formatMs(nsToMs(stats.matchNs))} render=${formatMs(nsToMs(stats.renderNs))} apply=${formatMs(nsToMs(stats.applyNs))} write=${formatMs(nsToMs(stats.writeNs))}`,
     );
@@ -146,11 +167,12 @@ export async function rewriteProject(
   let totalMatches = 0;
   let totalReplacements = 0;
   const fileResults: SpatchFileResult[] = [];
-  for (const fileResult of results) {
-    if (!fileResult) {
+  for (const analysis of analyses) {
+    if (!analysis) {
       continue;
     }
 
+    const { fileResult } = analysis;
     filesMatched += 1;
     totalMatches += fileResult.matchCount;
     totalReplacements += fileResult.replacementCount;
@@ -193,7 +215,7 @@ export async function rewriteProject(
   };
 }
 
-type RewriteFileInput = {
+type AnalyzeFileInput = {
   cwd: string;
   scopePath: string;
   filePath: string;
@@ -211,7 +233,13 @@ type RewriteFileInput = {
   stats?: RewritePerfStats;
 };
 
-async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | null> {
+type AnalyzedFile = {
+  fileResult: SpatchFileResult;
+  /** Staged write entry, or null when dryRun is true or the file has no changes. */
+  writeEntry: TransactionEntry | null;
+};
+
+async function analyzeFile(input: AnalyzeFileInput): Promise<AnalyzedFile | null> {
   const readStarted = input.stats ? nowNs() : 0n;
   const originalText = await readFile(input.filePath, input.encoding);
   if (input.stats) {
@@ -267,30 +295,30 @@ async function rewriteFile(input: RewriteFileInput): Promise<SpatchFileResult | 
   }
   const changed = rewrittenText !== originalText;
 
-  if (changed && !input.dryRun) {
-    const writeStarted = input.stats ? nowNs() : 0n;
-    await writeFileIfUnchangedAtomically({
-      filePath: input.filePath,
-      originalText,
-      rewrittenText,
-      encoding: input.encoding,
-      operationName: "non-interactive patch apply",
-    });
-    if (input.stats) {
-      input.stats.writeNs += nowNs() - writeStarted;
-    }
-  }
+  const writeEntry: TransactionEntry | null =
+    changed && !input.dryRun
+      ? {
+          filePath: input.filePath,
+          originalText,
+          rewrittenText,
+          encoding: input.encoding,
+          operationName: "non-interactive patch apply",
+        }
+      : null;
 
   return {
-    file: toDisplayFilePath(input),
-    matchCount: matches.length,
-    replacementCount,
-    changed,
-    byteDelta: changed
-      ? Buffer.byteLength(rewrittenText, input.encoding) -
-        Buffer.byteLength(originalText, input.encoding)
-      : 0,
-    occurrences,
+    fileResult: {
+      file: toDisplayFilePath(input),
+      matchCount: matches.length,
+      replacementCount,
+      changed,
+      byteDelta: changed
+        ? Buffer.byteLength(rewrittenText, input.encoding) -
+          Buffer.byteLength(originalText, input.encoding)
+        : 0,
+      occurrences,
+    },
+    writeEntry,
   };
 }
 

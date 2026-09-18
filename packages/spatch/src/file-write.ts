@@ -11,7 +11,7 @@ type WriteFileIfUnchangedAtomicallyInput = {
   fs?: FileWriteFs;
 };
 
-type FileWriteFs = {
+export type FileWriteFs = {
   readFile: (path: string, encoding: BufferEncoding) => Promise<string>;
   stat: (path: string) => Promise<{ mode: number }>;
   writeFile: (
@@ -23,6 +23,27 @@ type FileWriteFs = {
   rm: (path: string, options: { force: boolean }) => Promise<void>;
 };
 
+export type TransactionEntry = {
+  filePath: string;
+  originalText: string;
+  rewrittenText: string;
+  encoding: BufferEncoding;
+  operationName: string;
+};
+
+export class PartialCommitError extends Error {
+  readonly affectedFiles: readonly string[];
+
+  constructor(affectedFiles: string[]) {
+    const sorted = [...affectedFiles].sort();
+    super(
+      `Partial commit: rollback failed for ${sorted.length} file(s). Manual inspection required: ${sorted.join(", ")}`,
+    );
+    this.name = "PartialCommitError";
+    this.affectedFiles = sorted;
+  }
+}
+
 const defaultFs: FileWriteFs = {
   readFile,
   stat,
@@ -30,6 +51,104 @@ const defaultFs: FileWriteFs = {
   rename,
   rm,
 };
+
+/**
+ * Commits a set of staged file replacements transactionally.
+ *
+ * - Preflights all targets against their analyzed source content before touching
+ *   any file. If any file has changed since analysis, no writes are performed.
+ * - Commits in deterministic absolute-path order with a final stale-content
+ *   check before each rename.
+ * - On commit failure, rolls back committed files in reverse order without
+ *   overwriting concurrent external edits.
+ * - Throws `PartialCommitError` (listing affected absolute paths) if rollback
+ *   cannot fully restore the original state.
+ */
+export async function commitTransaction(
+  entries: TransactionEntry[],
+  options?: { fs?: FileWriteFs },
+): Promise<void> {
+  if (entries.length === 0) {
+    return;
+  }
+
+  const fs = options?.fs ?? defaultFs;
+
+  // Sort by absolute path for deterministic, reproducible commit order.
+  const sorted = [...entries].sort((a, b) => a.filePath.localeCompare(b.filePath));
+
+  // Preflight: verify all files still match their analyzed content before
+  // touching any target. Any mismatch aborts the entire transaction.
+  for (const entry of sorted) {
+    let current: string;
+    try {
+      current = await fs.readFile(entry.filePath, entry.encoding);
+    } catch (error) {
+      throw mapReadError(error, entry.filePath, entry.operationName);
+    }
+    if (current !== entry.originalText) {
+      throw buildStaleApplyError(entry.filePath, entry.operationName);
+    }
+  }
+
+  // Commit phase: write each file in sorted order.
+  const committed: TransactionEntry[] = [];
+  let commitError: unknown = null;
+
+  for (const entry of sorted) {
+    try {
+      await writeFileIfUnchangedAtomically({ ...entry, fs });
+      committed.push(entry);
+    } catch (error) {
+      commitError = error;
+      break;
+    }
+  }
+
+  if (commitError === null) {
+    return; // All files committed successfully.
+  }
+
+  // Rollback: restore committed files in reverse order.
+  // Concurrent external edits are preserved rather than overwritten.
+  const rollbackFailures: string[] = [];
+
+  for (const entry of [...committed].reverse()) {
+    try {
+      let current: string;
+      try {
+        current = await fs.readFile(entry.filePath, entry.encoding);
+      } catch {
+        // File is unreadable (e.g. deleted) after our commit — cannot restore.
+        rollbackFailures.push(entry.filePath);
+        continue;
+      }
+
+      if (current !== entry.rewrittenText) {
+        // File was concurrently edited after our commit — preserve it.
+        rollbackFailures.push(entry.filePath);
+        continue;
+      }
+
+      await writeFileIfUnchangedAtomically({
+        filePath: entry.filePath,
+        originalText: entry.rewrittenText,
+        rewrittenText: entry.originalText,
+        encoding: entry.encoding,
+        operationName: `${entry.operationName} rollback`,
+        fs,
+      });
+    } catch {
+      rollbackFailures.push(entry.filePath);
+    }
+  }
+
+  if (rollbackFailures.length > 0) {
+    throw new PartialCommitError(rollbackFailures);
+  }
+
+  throw commitError;
+}
 
 export async function writeFileIfUnchangedAtomically(
   input: WriteFileIfUnchangedAtomicallyInput,

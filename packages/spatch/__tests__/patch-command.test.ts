@@ -1064,3 +1064,52 @@ test("cli --check exits zero when no replacements are needed", async () => {
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("runPatchCommand non-interactive writes multiple matching files via transactional commit", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const fileA = path.join(workspace, "a.ts");
+    const fileB = path.join(workspace, "b.ts");
+    await writeFile(fileA, "const first = 1;\n", "utf8");
+    await writeFile(fileB, "const second = 2;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand(patch, workspace, { cwd: workspace });
+
+    expect(result.filesChanged).toBe(2);
+    expect(result.totalReplacements).toBe(2);
+    expect(await readFile(fileA, "utf8")).toBe("let first = 1;\n");
+    expect(await readFile(fileB, "utf8")).toBe("let second = 2;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runPatchCommand interactive writes multiple matching files via transactional commit", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "patch-command-"));
+
+  try {
+    const fileA = path.join(workspace, "a.ts");
+    const fileB = path.join(workspace, "b.ts");
+    await writeFile(fileA, "const first = 1;\n", "utf8");
+    await writeFile(fileB, "const second = 2;\n", "utf8");
+
+    const patch = ["-const :[name] = :[value];", "+let :[name] = :[value];"].join("\n");
+
+    const result = await runPatchCommand(
+      patch,
+      workspace,
+      { interactive: true, cwd: workspace },
+      { interactiveDecider: async () => "yes" },
+    );
+
+    expect(result.filesChanged).toBe(2);
+    expect(result.totalReplacements).toBe(2);
+    expect(await readFile(fileA, "utf8")).toBe("let first = 1;\n");
+    expect(await readFile(fileB, "utf8")).toBe("let second = 2;\n");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
