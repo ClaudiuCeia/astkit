@@ -32,15 +32,15 @@
     "skill:install": "bunx skills@1.5.23 add ./packages/astkit/skills/astkit-tooling -a codex -y"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.2",
+    "@changesets/cli": "^3.0.3",
     "@claudiu-ceia/sgrep": "workspace:*",
     "@claudiu-ceia/spatch": "workspace:*",
-    "@types/bun": "^1.4.1",
+    "@types/bun": "^1.4.2",
     "@types/node": "22.20.1",
-    "knip": "^6.34.0",
+    "knip": "^6.37.0",
     "mitata": "^1.0.34",
-    "oxfmt": "^0.66.0",
-    "oxlint": "^1.81.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "typescript": "^7.0.2"
   },
   "overrides": {
