@@ -5,4 +5,4 @@
 "@claudiu-ceia/spatch": patch
 ---
 
-Update `@claudiu-ceia/combine` to 0.11.2.
+Update `@claudiu-ceia/combine` to 0.11.3.
