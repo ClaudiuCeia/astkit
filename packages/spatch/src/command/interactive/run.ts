@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
-import { writeFileIfUnchangedAtomically } from "../../file-write.ts";
+import { commitTransaction, type TransactionEntry } from "../../file-write.ts";
 import { applyReplacementSpans } from "../../replacement-spans.ts";
 import { patchProject } from "../../spatch.ts";
 import type { SpatchFileResult, SpatchOccurrence, SpatchResult } from "../../types.ts";
@@ -151,6 +151,22 @@ export async function runInteractivePatchCommand(
     });
   }
 
+  // Collect transaction entries for all changed files and commit atomically.
+  // This ensures a later write failure can roll back earlier writes.
+  const transactionEntries: TransactionEntry[] = [];
+  for (const prepared of preparedByFile.values()) {
+    if (prepared.changed) {
+      transactionEntries.push({
+        filePath: prepared.absolutePath,
+        originalText: prepared.originalText,
+        rewrittenText: prepared.rewrittenText,
+        encoding,
+        operationName: "interactive patch apply",
+      });
+    }
+  }
+  await commitTransaction(transactionEntries);
+
   for (const file of dryResult.files) {
     const selected = selectedByFile.get(file.file) ?? [];
     if (selected.length === 0) {
@@ -167,16 +183,6 @@ export async function runInteractivePatchCommand(
     const prepared = preparedByFile.get(file.file);
     if (!prepared) {
       throw new Error(`Missing prepared interactive rewrite state for ${file.file}`);
-    }
-
-    if (prepared.changed) {
-      await writeFileIfUnchangedAtomically({
-        filePath: prepared.absolutePath,
-        originalText: prepared.originalText,
-        rewrittenText: prepared.rewrittenText,
-        encoding,
-        operationName: "interactive patch apply",
-      });
     }
 
     fileResults.push({
